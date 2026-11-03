@@ -3,16 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Escáner de Bodega & Inventario Pro</title>
+  <title>Lector de Códigos & Inventario</title>
   <style>
     :root {
       --bg: #0f172a;
       --card-bg: #1e293b;
       --card-border: #334155;
       --accent: #38bdf8;
-      --accent-hover: #0284c7;
+      --accent-btn: #0284c7;
       --success: #10b981;
-      --warning: #f59e0b;
       --danger: #ef4444;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
@@ -21,167 +20,130 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-    /* Header */
+    /* Cabecera */
     header {
-      padding: 10px 16px;
+      padding: 12px 16px;
       background-color: var(--card-bg);
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--card-border);
     }
-    .header-title { font-size: 1.05rem; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 8px; }
-    .header-badges { display: flex; align-items: center; gap: 6px; }
-    .badge {
-      font-size: 0.72rem;
-      padding: 3px 8px;
-      border-radius: 999px;
-      font-weight: 600;
-      background: #0369a1;
-      color: #e0f2fe;
-    }
-    .badge-outline {
-      background: transparent;
-      border: 1px solid var(--card-border);
-      color: var(--text-muted);
-      cursor: pointer;
-    }
+    header h1 { font-size: 1.05rem; font-weight: 700; color: var(--accent); }
+    #item-counter { font-size: 0.82rem; color: var(--text-muted); background: #0f172a; padding: 3px 10px; border-radius: 12px; }
 
-    /* Scanner Viewport */
-    .scanner-container { position: relative; width: 100%; height: 35vh; min-height: 200px; background: #000; overflow: hidden; }
+    /* Contenedor de Cámara */
+    .scanner-container { position: relative; width: 100%; height: 36vh; min-height: 220px; background: #000; overflow: hidden; }
     video { width: 100%; height: 100%; object-fit: cover; }
-    
+
+    /* Mira de enfoque */
     .target-box {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 80%; height: 60%; border: 2px dashed var(--accent); border-radius: 12px;
+      width: 75%; height: 55%; border: 2px dashed rgba(56, 189, 248, 0.6); border-radius: 10px;
       box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); pointer-events: none;
-      transition: border-color 0.2s ease;
+      transition: all 0.2s ease;
     }
-    .target-box.active-flash {
-      border-color: var(--success);
+    .target-box.focused {
+      border: 2px solid var(--success);
       box-shadow: 0 0 0 9999px rgba(16, 185, 129, 0.2);
     }
 
-    /* Scanner floating actions */
-    .scanner-overlay-controls {
-      position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 10;
+    /* Etiqueta flotante de código enfocado */
+    .focus-badge {
+      position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9); border: 1px solid var(--success);
+      color: var(--success); font-family: monospace; font-size: 0.85rem; font-weight: 700;
+      padding: 5px 12px; border-radius: 20px; display: none; z-index: 10;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     }
-    .btn-circle {
-      width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(15, 23, 42, 0.8);
-      color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer;
-      backdrop-filter: blur(4px); box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-    }
-    .btn-circle:active { transform: scale(0.92); }
-    .btn-circle.active { background: var(--warning); color: #000; }
 
-    /* Status Bar */
-    .status-bar {
-      padding: 6px 14px;
-      font-size: 0.72rem;
-      color: var(--text-muted);
+    /* Botón Linterna */
+    .torch-btn {
+      position: absolute; top: 12px; right: 12px;
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      background: rgba(15, 23, 42, 0.85); color: #fff; font-size: 1.1rem;
+      cursor: pointer; z-index: 10; display: none; align-items: center; justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .torch-btn.active { background: #f59e0b; color: #000; }
+
+    /* Barra de Acción Principal: Capturar y Escribir */
+    .action-panel {
+      padding: 10px 14px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      gap: 10px;
+    }
+    .btn-capture {
+      flex: 1.8;
+      background: var(--accent-btn);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+    }
+    .btn-capture:active { transform: scale(0.98); }
+    .btn-capture.scanning { background: #0369a1; }
+
+    .btn-manual {
+      flex: 1;
+      background: #334155;
+      color: #f1f5f9;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-manual:active { transform: scale(0.98); }
+
+    /* Barra de Exportación */
+    .export-bar {
+      padding: 8px 14px;
       background: #0b1120;
       display: flex;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--card-border);
-    }
-
-    /* Subheader & Options */
-    .toolbar {
-      padding: 8px 12px;
-      background: var(--card-bg);
-      display: flex;
-      flex-direction: column;
       gap: 8px;
       border-bottom: 1px solid var(--card-border);
     }
-    .mode-switch-container {
-      display: flex;
-      background: #0f172a;
-      border-radius: 8px;
-      padding: 2px;
-      border: 1px solid var(--card-border);
-    }
-    .mode-btn {
+    .btn-export {
       flex: 1;
-      padding: 6px;
-      border-radius: 6px;
-      font-size: 0.75rem;
+      padding: 8px;
       border: none;
-      background: transparent;
-      color: var(--text-muted);
+      border-radius: 6px;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .mode-btn.active {
-      background: var(--card-bg);
-      color: var(--accent);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-
-    /* Manual Input Row */
-    .manual-row {
-      display: flex;
-      gap: 6px;
-    }
-    .manual-row input {
-      flex: 1;
-      background: #0f172a;
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
-      padding: 8px 10px;
-      color: var(--text-main);
-      font-size: 0.82rem;
-      outline: none;
-    }
-    .manual-row input:focus { border-color: var(--accent); }
-    .btn-action-small {
-      padding: 8px 14px;
-      background: var(--accent);
-      color: #0f172a;
-      font-weight: 700;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-
-    /* Main Export Controls */
-    .export-controls {
-      padding: 8px 12px;
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr 0.6fr;
-      gap: 6px;
-      background: var(--card-bg);
-      border-bottom: 1px solid var(--card-border);
-    }
-    button.btn-cmd {
-      padding: 8px 6px;
-      border: none;
-      border-radius: 6px;
-      font-weight: 600;
-      cursor: pointer;
-      font-size: 0.76rem;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 4px;
-      transition: opacity 0.2s;
     }
-    button.btn-cmd:active { opacity: 0.8; }
     .btn-csv { background: var(--success); color: #fff; }
     .btn-share { background: #0284c7; color: #fff; }
-    .btn-json { background: #6366f1; color: #fff; }
-    .btn-clear { background: var(--danger); color: #fff; }
+    .btn-clear { background: var(--danger); color: #fff; flex: 0.4; }
 
-    /* Records List */
+    /* Listado limpio de códigos */
     .list-container {
       flex: 1;
       overflow-y: auto;
-      padding: 10px 12px;
+      padding: 10px 14px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
     .item-card {
       background: var(--card-bg);
@@ -191,255 +153,202 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 8px;
-      animation: fadeIn 0.2s ease;
+      gap: 10px;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .item-info { flex: 1; min-width: 0; }
+    .item-main { flex: 1; min-width: 0; }
     .item-code {
       font-family: monospace;
-      font-size: 0.95rem;
+      font-size: 1.05rem;
       font-weight: 700;
-      color: #f1f5f9;
+      color: #38bdf8;
       word-break: break-all;
     }
-    .item-product-name {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #38bdf8;
-      margin-top: 1px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .item-comment {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      margin-top: 3px;
+      background: #0f172a;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      max-width: 100%;
+      word-break: break-word;
     }
-    .item-meta {
+    .item-time {
       font-size: 0.7rem;
       color: var(--text-muted);
-      margin-top: 3px;
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+      margin-top: 4px;
     }
-    .item-loc-tag {
-      background: #334155;
-      color: #cbd5e1;
-      padding: 1px 5px;
-      border-radius: 3px;
-    }
-
-    /* Quantity and actions */
-    .item-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .qty-control {
-      display: flex;
-      align-items: center;
-      background: #0f172a;
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
-      overflow: hidden;
-    }
-    .qty-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      width: 26px;
-      height: 28px;
-      font-size: 0.9rem;
-      font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .qty-btn:hover { background: #1e293b; color: #fff; }
-    .qty-number {
-      min-width: 28px;
-      text-align: center;
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: var(--accent);
-      padding: 0 4px;
-    }
-    .btn-delete-item {
+    .btn-delete {
       background: transparent;
       border: none;
       color: #64748b;
+      font-size: 1.1rem;
       cursor: pointer;
-      padding: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 4px;
+      padding: 6px 10px;
+      border-radius: 6px;
     }
-    .btn-delete-item:hover { color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+    .btn-delete:hover, .btn-delete:active { color: var(--danger); background: rgba(239, 68, 68, 0.15); }
 
-    /* Modal for catalog */
+    .empty-msg {
+      text-align: center;
+      color: var(--text-muted);
+      margin-top: 40px;
+      font-size: 0.85rem;
+    }
+
+    /* Modal para Confirmar Código y Agregar Comentario */
     .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(2px);
-      display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px;
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(3px);
+      display: none; align-items: flex-end; justify-content: center; z-index: 100;
     }
     .modal-overlay.open { display: flex; }
-    .modal-card {
-      background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px;
-      max-width: 420px; width: 100%; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    .modal-sheet {
+      background: var(--card-bg);
+      border-top: 1px solid var(--card-border);
+      border-radius: 16px 16px 0 0;
+      width: 100%;
+      max-width: 500px;
+      padding: 18px 16px 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: slideUp 0.2s ease;
     }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; }
-    .modal-header h3 { font-size: 1rem; color: var(--accent); }
-    .modal-close { background: transparent; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; }
-    .modal-body { font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; display: flex; flex-direction: column; gap: 10px; }
-    .modal-btn {
-      padding: 10px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
     }
+    .modal-title { font-size: 1rem; font-weight: 700; color: var(--accent); }
+    .field-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .modal-input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .modal-input:focus { border-color: var(--accent); }
+    .modal-input.code-style { font-family: monospace; font-weight: 700; color: #38bdf8; font-size: 1.1rem; }
 
-    .empty-state {
-      text-align: center; color: var(--text-muted); margin-top: 40px; font-size: 0.85rem;
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .btn-save-confirm {
+      flex: 1.6;
+      background: var(--success);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-cancel-modal {
+      flex: 1;
+      background: #334155;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
     }
   </style>
   <script src="https://unpkg.com/@zxing/library@latest"></script>
 </head>
 <body>
 
-  <!-- Encabezado con estado y botón de catálogo -->
   <header>
-    <div class="header-title">
-      📦 Bodega & Activos
-    </div>
-    <div class="header-badges">
-      <button class="badge badge-outline" onclick="openCatalogModal()" id="catalog-btn">📂 Catálogo (0)</button>
-      <span class="badge" id="scan-count">0 ítems</span>
-    </div>
+    <h1>Escáner & Inventario</h1>
+    <span id="item-counter">0 códigos</span>
   </header>
 
-  <!-- Vista de la cámara con controles flotantes -->
+  <!-- Visor de Cámara -->
   <div class="scanner-container">
     <video id="preview" playsinline autoplay muted></video>
     <div class="target-box" id="target-box"></div>
-    
-    <div class="scanner-overlay-controls">
-      <button class="btn-circle" id="torch-btn" onclick="toggleTorch()" title="Linterna (Flash)" style="display:none;">
-        🔦
-      </button>
-      <button class="btn-circle" id="cam-switch-btn" onclick="switchCamera()" title="Cambiar Cámara">
-        🔄
-      </button>
-    </div>
+    <div class="focus-badge" id="focus-badge">Código detectado</div>
+    <button class="torch-btn" id="torch-btn" onclick="toggleTorch()" title="Linterna">🔦</button>
   </div>
 
-  <!-- Barra de estado técnica -->
-  <div class="status-bar">
-    <span id="engine-status">Iniciando motor...</span>
-    <span id="cooldown-timer">Listo</span>
+  <!-- Botones de Acción (El usuario decide cuándo escanear o escribir) -->
+  <div class="action-panel">
+    <button class="btn-capture" id="btn-capture" onclick="handleCaptureClick()">
+      📸 Escanear Ahora
+    </button>
+    <button class="btn-manual" onclick="openModalForManual()">
+      ⌨️ Escribir
+    </button>
   </div>
 
-  <!-- Barra de Modo (Inventario / Trazabilidad) e Ingreso Manual -->
-  <div class="toolbar">
-    <div class="mode-switch-container">
-      <button class="mode-btn active" id="mode-count-btn" onclick="setMode('count')">
-        📊 Modo Conteo (Agrupar)
-      </button>
-      <button class="mode-btn" id="mode-trace-btn" onclick="setMode('trace')">
-        ⏱️ Modo Trazabilidad (1 a 1)
-      </button>
-    </div>
-
-    <!-- Ingreso Manual de Código -->
-    <form class="manual-row" onsubmit="handleManualSubmit(event)">
-      <input type="text" id="manual-input" placeholder="Escribir código manual..." autocomplete="off" />
-      <button type="submit" class="btn-action-small">+ Agregar</button>
-    </form>
+  <!-- Barra de Exportación -->
+  <div class="export-bar">
+    <button class="btn-export btn-csv" onclick="exportData('csv')">📄 Descargar CSV</button>
+    <button class="btn-export btn-share" onclick="shareData()">📲 Compartir</button>
+    <button class="btn-export btn-clear" onclick="clearAll()">🗑️</button>
   </div>
 
-  <!-- Botones de Exportación / Acciones -->
-  <div class="export-controls">
-    <button class="btn-cmd btn-csv" onclick="exportData('csv')">📄 CSV</button>
-    <button class="btn-cmd btn-share" onclick="shareData()">📲 Compartir</button>
-    <button class="btn-cmd btn-json" onclick="exportData('json')">🧩 JSON</button>
-    <button class="btn-cmd btn-clear" onclick="clearRecords()">🗑️</button>
-  </div>
-
-  <!-- Lista de Códigos Escaneados -->
+  <!-- Lista Limpia de Códigos Guardados -->
   <div class="list-container" id="records-list"></div>
 
-  <!-- Modal para Cargar Catálogo Maestro -->
-  <div class="modal-overlay" id="catalog-modal">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3>Catálogo Maestro de Productos</h3>
-        <button class="modal-close" onclick="closeCatalogModal()">✕</button>
+  <!-- Ventana de Confirmación y Comentario -->
+  <div class="modal-overlay" id="save-modal">
+    <div class="modal-sheet">
+      <div class="modal-title">Guardar Registro</div>
+      
+      <div>
+        <label class="field-label">Código</label>
+        <input type="text" id="modal-code" class="modal-input code-style" placeholder="Ej: 78012345678" />
       </div>
-      <div class="modal-body">
-        <p>Carga un archivo CSV para asociar automáticamente los códigos de barra con el nombre y ubicación en bodega.</p>
-        <p style="font-family: monospace; background: #0f172a; padding: 6px; border-radius: 4px; font-size: 0.72rem;">
-          Formato CSV esperado (con o sin encabezado):<br>
-          codigo,nombre_producto,ubicacion<br>
-          7801234567,Taladro Inalámbrico 20V,Pasillo B-12
-        </p>
-        <input type="file" id="catalog-file-input" accept=".csv,.txt" style="display:none;" onchange="handleCatalogUpload(event)" />
-        <button class="modal-btn" style="background: var(--accent); color: #000;" onclick="document.getElementById('catalog-file-input').click()">
-          Seleccionar archivo CSV
-        </button>
-        <div id="catalog-status-info" style="font-size: 0.75rem; color: var(--text-muted);">
-          Productos registrados actualmente: 0
-        </div>
-        <button class="modal-btn" style="background: #334155; color: #f8fafc;" onclick="clearCatalog()">
-          Vaciar catálogo cargado
-        </button>
+
+      <div>
+        <label class="field-label">Comentario u Observación (Opcional)</label>
+        <input type="text" id="modal-comment" class="modal-input" placeholder="Ej: Caja dañada, Estante 3, Lote A..." />
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-save-confirm" onclick="saveRecordFromModal()">💾 Guardar</button>
+        <button class="btn-cancel-modal" onclick="closeModal()">✕ Cancelar</button>
       </div>
     </div>
   </div>
 
   <script>
-    const STORAGE_KEY = 'scanned_barcodes_v2';
-    const CATALOG_KEY = 'catalog_database_v1';
-    const MODE_KEY = 'scanner_mode_v1';
-
-    // Estado principal
+    const STORAGE_KEY = 'bodega_clean_records_v1';
     let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    let catalog = JSON.parse(localStorage.getItem(CATALOG_KEY) || '{}');
-    let scanMode = localStorage.getItem(MODE_KEY) || 'count'; // 'count' o 'trace'
-    
-    let lastScanTime = 0;
-    let lastScanValue = '';
-    const COOLDOWN_MS = 1800;
+
+    // Detección en memoria (solo para enfocar, NUNCA guarda automáticamente)
+    let latestSeenCode = '';
+    let latestSeenTime = 0;
     
     let barcodeDetector = null;
     let zxingReader = null;
     let currentStream = null;
-    let currentFacingMode = "environment";
     let isTorchOn = false;
-    
+
     const video = document.getElementById('preview');
     const targetBox = document.getElementById('target-box');
+    const focusBadge = document.getElementById('focus-badge');
 
-    // Inicialización al cargar la página
     document.addEventListener('DOMContentLoaded', () => {
-      applyModeUI();
-      updateCatalogBadge();
       renderList();
       initScanner();
     });
 
-    // 1. Configuración de Cámara & Detección
+    // 1. Inicializar Cámara y Motores
     async function initScanner() {
-      const statusEl = document.getElementById('engine-status');
-      const torchBtn = document.getElementById('torch-btn');
-
-      // Detener stream previo si existe
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
-
       try {
         currentStream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: { ideal: currentFacingMode },
+            facingMode: { ideal: "environment" },
             width: { ideal: 1280 },
             height: { ideal: 720 },
             focusMode: "continuous"
@@ -449,62 +358,201 @@
         video.srcObject = currentStream;
         await video.play();
 
-        // Verificar soporte de linterna (Flash)
+        // Linterna
         const track = currentStream.getVideoTracks()[0];
         if (track && track.getCapabilities && track.getCapabilities().torch) {
-          torchBtn.style.display = 'flex';
-        } else {
-          torchBtn.style.display = 'none';
+          document.getElementById('torch-btn').style.display = 'flex';
         }
 
-        // Selección de motor (Nativo o ZXing)
+        // Configurar detección pasiva en visor
         if ('BarcodeDetector' in window) {
           const supported = await BarcodeDetector.getSupportedFormats();
           barcodeDetector = new BarcodeDetector({ formats: supported });
-          statusEl.innerText = 'Motor: BarcodeDetector (Nativo)';
-          startNativeDetectionLoop();
+          startNativePassiveLoop();
         } else {
-          statusEl.innerText = 'Motor: ZXing WASM (Universal)';
-          startZXingFallback();
+          startZXingPassiveLoop();
         }
       } catch (err) {
-        statusEl.innerText = 'Cámara inaccesible: ' + err.message;
-        console.error(err);
+        console.error('Error al iniciar cámara:', err);
       }
     }
 
-    // Loop nativo
-    function startNativeDetectionLoop() {
+    // Loop pasivo nativo: sólo registra qué código está frente a la cámara
+    function startNativePassiveLoop() {
       const loop = async () => {
         if (video.readyState === video.HAVE_ENOUGH_DATA && barcodeDetector) {
           try {
-            const barcodes = await barcodeDetector.detect(video);
-            if (barcodes.length > 0) {
-              const code = barcodes[0];
-              handleScan(code.rawValue, code.format);
+            const codes = await barcodeDetector.detect(video);
+            if (codes && codes.length > 0) {
+              registerPassiveSighting(codes[0].rawValue);
             }
-          } catch (e) {
-            console.error(e);
-          }
+          } catch (e) {}
         }
         requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
     }
 
-    // Fallback universal ZXing
-    function startZXingFallback() {
-      if (!zxingReader) {
-        zxingReader = new ZXing.BrowserMultiFormatReader();
-      }
-      zxingReader.decodeFromVideoElement(video, (result, err) => {
+    // Loop pasivo ZXing: fallback universal
+    function startZXingPassiveLoop() {
+      zxingReader = new ZXing.BrowserMultiFormatReader();
+      zxingReader.decodeFromVideoElement(video, (result) => {
         if (result) {
-          handleScan(result.getText(), result.getBarcodeFormat() || 'UNKNOWN');
+          registerPassiveSighting(result.getText());
         }
       });
     }
 
-    // 2. Control de Linterna (Torch)
+    // Señal visual de que la cámara ve un código (sin guardarlo)
+    function registerPassiveSighting(val) {
+      if (!val) return;
+      latestSeenCode = String(val).trim();
+      latestSeenTime = Date.now();
+
+      targetBox.classList.add('focused');
+      focusBadge.innerText = `Enfocado: ${latestSeenCode}`;
+      focusBadge.style.display = 'block';
+    }
+
+    // Ocultar indicador si el código se retira de la cámara
+    setInterval(() => {
+      if (Date.now() - latestSeenTime > 1200) {
+        targetBox.classList.remove('focused');
+        focusBadge.style.display = 'none';
+      }
+    }, 400);
+
+    // 2. Botón de Escanear: El usuario decide cuándo capturar
+    function handleCaptureClick() {
+      const btn = document.getElementById('btn-capture');
+
+      // Si ya hay un código en foco en este instante:
+      if (latestSeenCode && (Date.now() - latestSeenTime < 1500)) {
+        openModalWithCode(latestSeenCode);
+        return;
+      }
+
+      // Si aún no está enfocado, busca activamente durante 2 segundos
+      btn.classList.add('scanning');
+      btn.innerText = 'Buscando en la mira...';
+
+      const startTime = Date.now();
+      const checkInterval = setInterval(() => {
+        if (latestSeenCode && (Date.now() - latestSeenTime < 1000)) {
+          clearInterval(checkInterval);
+          btn.classList.remove('scanning');
+          btn.innerHTML = '📸 Escanear Ahora';
+          openModalWithCode(latestSeenCode);
+          return;
+        }
+
+        if (Date.now() - startTime > 2200) {
+          clearInterval(checkInterval);
+          btn.classList.remove('scanning');
+          btn.innerHTML = '📸 Escanear Ahora';
+          alert('No se detectó ningún código. Enfócalo dentro del recuadro e inténtalo de nuevo.');
+        }
+      }, 150);
+    }
+
+    // 3. Abrir ventana de guardado
+    function openModalWithCode(code) {
+      if (navigator.vibrate) navigator.vibrate(80);
+      document.getElementById('modal-code').value = code || '';
+      document.getElementById('modal-comment').value = '';
+      document.getElementById('save-modal').classList.add('open');
+
+      // Colocar cursor en el comentario para que el usuario escriba rápido
+      setTimeout(() => {
+        document.getElementById('modal-comment').focus();
+      }, 150);
+    }
+
+    function openModalForManual() {
+      document.getElementById('modal-code').value = '';
+      document.getElementById('modal-comment').value = '';
+      document.getElementById('save-modal').classList.add('open');
+
+      setTimeout(() => {
+        document.getElementById('modal-code').focus();
+      }, 150);
+    }
+
+    function closeModal() {
+      document.getElementById('save-modal').classList.remove('open');
+    }
+
+    // 4. Guardar en la lista (Solo se ejecuta al presionar "Guardar")
+    function saveRecordFromModal() {
+      const codeInput = document.getElementById('modal-code');
+      const commentInput = document.getElementById('modal-comment');
+
+      const code = codeInput.value.trim();
+      const comment = commentInput.value.trim();
+
+      if (!code) {
+        alert('Por favor ingresa o escanea un código.');
+        return;
+      }
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Guardar registro limpio (sin campos basura)
+      records.unshift({
+        code: code,
+        comment: comment,
+        time: timeStr,
+        timestamp: now.toISOString()
+      });
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      closeModal();
+      renderList();
+    }
+
+    // 5. Renderizado Limpio de la Lista
+    function renderList() {
+      const container = document.getElementById('records-list');
+      document.getElementById('item-counter').innerText = `${records.length} guardados`;
+
+      if (records.length === 0) {
+        container.innerHTML = `
+          <div class="empty-msg">
+            <p>Ningún código guardado aún.<br>Enfoca un código y presiona <b>"Escanear Ahora"</b>.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = records.map((r, index) => `
+        <div class="item-card">
+          <div class="item-main">
+            <div class="item-code">${escapeHtml(r.code)}</div>
+            ${r.comment ? `<div class="item-comment">💬 ${escapeHtml(r.comment)}</div>` : ''}
+            <div class="item-time">🕒 ${escapeHtml(r.time || '')}</div>
+          </div>
+          <button class="btn-delete" onclick="deleteItem(${index})" title="Eliminar de la lista">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function deleteItem(index) {
+      records.splice(index, 1);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      renderList();
+    }
+
+    function clearAll() {
+      if (records.length === 0) return;
+      if (confirm('¿Vaciar toda la lista de códigos?')) {
+        records = [];
+        localStorage.removeItem(STORAGE_KEY);
+        renderList();
+      }
+    }
+
+    // 6. Linterna (Flash)
     async function toggleTorch() {
       if (!currentStream) return;
       const track = currentStream.getVideoTracks()[0];
@@ -512,224 +560,21 @@
 
       try {
         isTorchOn = !isTorchOn;
-        await track.applyConstraints({
-          advanced: [{ torch: isTorchOn }]
-        });
-        const btn = document.getElementById('torch-btn');
-        if (isTorchOn) {
-          btn.classList.add('active');
-        } else {
-          btn.classList.remove('active');
-        }
-      } catch (err) {
-        console.warn('No se pudo conmutar la linterna:', err);
+        await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
+        document.getElementById('torch-btn').classList.toggle('active', isTorchOn);
+      } catch (e) {
+        console.warn('Linterna no disponible:', e);
       }
     }
 
-    // Cambiar entre cámara trasera y frontal
-    function switchCamera() {
-      currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
-      isTorchOn = false;
-      document.getElementById('torch-btn').classList.remove('active');
-      initScanner();
-    }
-
-    // 3. Procesamiento de lectura de código
-    function handleScan(rawValue, format = 'CODE_128') {
-      const cleanValue = String(rawValue || '').trim();
-      if (!cleanValue) return;
-
-      const now = Date.now();
-      if (cleanValue === lastScanValue && (now - lastScanTime) < COOLDOWN_MS) {
-        return;
-      }
-      lastScanValue = cleanValue;
-      lastScanTime = now;
-
-      // Feedback háptico (vibración) y visual (parpadeo en la mira)
-      if (navigator.vibrate) navigator.vibrate(90);
-      triggerVisualFlash();
-
-      saveRecord(cleanValue, format);
-    }
-
-    function triggerVisualFlash() {
-      targetBox.classList.add('active-flash');
-      setTimeout(() => targetBox.classList.remove('active-flash'), 250);
-    }
-
-    // Guardado según el modo activo (Conteo vs Trazabilidad)
-    function saveRecord(value, format, quantityToAdd = 1) {
-      const nowIso = new Date().toISOString();
-      const catalogData = catalog[value] || null;
-
-      if (scanMode === 'count') {
-        // Modo Conteo: Si existe, suma cantidad y actualiza fecha
-        const existingIndex = records.findIndex(r => r.value === value);
-        if (existingIndex !== -1) {
-          records[existingIndex].quantity = (records[existingIndex].quantity || 1) + quantityToAdd;
-          records[existingIndex].timestamp = nowIso;
-          // Mover al inicio de la lista para visibilidad
-          const item = records.splice(existingIndex, 1)[0];
-          records.unshift(item);
-        } else {
-          records.unshift({
-            id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-            value: value,
-            format: format,
-            quantity: quantityToAdd,
-            firstSeen: nowIso,
-            timestamp: nowIso,
-            name: catalogData ? catalogData.name : '',
-            location: catalogData ? catalogData.location : ''
-          });
-        }
-      } else {
-        // Modo Trazabilidad: Cada escaneo es un registro nuevo
-        records.unshift({
-          id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-          value: value,
-          format: format,
-          quantity: 1,
-          firstSeen: nowIso,
-          timestamp: nowIso,
-          name: catalogData ? catalogData.name : '',
-          location: catalogData ? catalogData.location : ''
-        });
-      }
-
-      persistAndRender();
-    }
-
-    // 4. Ingreso Manual
-    function handleManualSubmit(e) {
-      e.preventDefault();
-      const input = document.getElementById('manual-input');
-      const val = input.value.trim();
-      if (!val) return;
-
-      saveRecord(val, 'MANUAL');
-      input.value = '';
-      if (navigator.vibrate) navigator.vibrate(50);
-    }
-
-    // 5. Gestión de Cantidades y Borrado individual
-    function adjustQty(id, delta) {
-      const item = records.find(r => r.id === id);
-      if (!item) return;
-
-      item.quantity = (item.quantity || 1) + delta;
-      if (item.quantity <= 0) {
-        deleteRecord(id, false);
-        return;
-      }
-      persistAndRender();
-    }
-
-    function deleteRecord(id, confirmPrompt = true) {
-      if (confirmPrompt && !confirm('¿Eliminar este código de la lista?')) return;
-      records = records.filter(r => r.id !== id);
-      persistAndRender();
-    }
-
-    function clearRecords() {
-      if (records.length === 0) return;
-      if (confirm('¿Vaciar toda la lista de registros?')) {
-        records = [];
-        persistAndRender();
-      }
-    }
-
-    function persistAndRender() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-      renderList();
-    }
-
-    // 6. Conmutar Modo de Escaneo
-    function setMode(mode) {
-      scanMode = mode;
-      localStorage.setItem(MODE_KEY, mode);
-      applyModeUI();
-      renderList();
-    }
-
-    function applyModeUI() {
-      const countBtn = document.getElementById('mode-count-btn');
-      const traceBtn = document.getElementById('mode-trace-btn');
-      if (scanMode === 'count') {
-        countBtn.classList.add('active');
-        traceBtn.classList.remove('active');
-      } else {
-        traceBtn.classList.add('active');
-        countBtn.classList.remove('active');
-      }
-    }
-
-    // 7. Renderizado de la Lista
-    function renderList() {
-      const container = document.getElementById('records-list');
-      const totalCount = records.reduce((acc, r) => acc + (r.quantity || 1), 0);
-      const uniqueCount = records.length;
-
-      document.getElementById('scan-count').innerText = 
-        scanMode === 'count' ? `${totalCount} u. (${uniqueCount} ref)` : `${totalCount} leídos`;
-
-      if (records.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <p>📷 Apunta la cámara a un código o escríbelo arriba</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = records.map(r => {
-        // Enlazar con catálogo dinámicamente si no venía cargado
-        const cat = catalog[r.value];
-        const productName = r.name || (cat ? cat.name : '');
-        const productLoc = r.location || (cat ? cat.location : '');
-
-        return `
-          <div class="item-card">
-            <div class="item-info">
-              <div class="item-code">${escapeHtml(r.value)}</div>
-              ${productName ? `<div class="item-product-name">${escapeHtml(productName)}</div>` : ''}
-              <div class="item-meta">
-                <span>🕒 ${new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span>
-                ${productLoc ? `<span class="item-loc-tag">📍 ${escapeHtml(productLoc)}</span>` : ''}
-                <span style="opacity: 0.7;">🏷️ ${escapeHtml(r.format)}</span>
-              </div>
-            </div>
-
-            <div class="item-actions">
-              ${scanMode === 'count' ? `
-                <div class="qty-control">
-                  <button class="qty-btn" onclick="adjustQty('${r.id}', -1)">−</button>
-                  <span class="qty-number">${r.quantity || 1}</span>
-                  <button class="qty-btn" onclick="adjustQty('${r.id}', 1)">+</button>
-                </div>
-              ` : ''}
-              <button class="btn-delete-item" onclick="deleteRecord('${r.id}')" title="Eliminar fila">✕</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // 8. Generación de Archivo y Exportación
-    function buildCsvString() {
-      let csv = '\uFEFF'; // BOM para que Excel en español reconozca caracteres y tildes
-      csv += 'ID,Codigo,Nombre_Producto,Ubicacion,Cantidad,Formato,Fecha_Ultima,Fecha_Inicial\r\n';
-      
+    // 7. Exportación Limpia (Solo Código, Comentario y Fecha/Hora)
+    function buildCsv() {
+      let csv = '\uFEFFCodigo,Comentario,Fecha_Hora\r\n';
       records.forEach(r => {
-        const cat = catalog[r.value];
-        const name = (r.name || (cat ? cat.name : '')).replace(/"/g, '""');
-        const loc = (r.location || (cat ? cat.location : '')).replace(/"/g, '""');
-        const code = r.value.replace(/"/g, '""');
-        const qty = r.quantity || 1;
-        const initial = r.firstSeen || r.timestamp;
-
-        csv += `"${r.id}","${code}","${name}","${loc}",${qty},"${r.format}","${r.timestamp}","${initial}"\r\n`;
+        const c = r.code.replace(/"/g, '""');
+        const comm = (r.comment || '').replace(/"/g, '""');
+        const date = r.timestamp ? r.timestamp.replace('T', ' ').slice(0, 19) : '';
+        csv += `"${c}","${comm}","${date}"\r\n`;
       });
       return csv;
     }
@@ -741,22 +586,10 @@
       }
 
       const dateStr = new Date().toISOString().slice(0, 10);
-      let blob, filename;
+      const csvContent = buildCsv();
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const filename = `codigos_${dateStr}.csv`;
 
-      if (type === 'csv') {
-        const csvContent = buildCsvString();
-        blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        filename = `inventario_${scanMode}_${dateStr}.csv`;
-      } else {
-        const jsonContent = JSON.stringify(records, null, 2);
-        blob = new Blob([jsonContent], { type: 'application/json' });
-        filename = `inventario_${scanMode}_${dateStr}.json`;
-      }
-
-      downloadBlob(blob, filename);
-    }
-
-    function downloadBlob(blob, filename) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -767,16 +600,16 @@
       URL.revokeObjectURL(url);
     }
 
-    // 9. Compartir directo con Web Share API (WhatsApp, Correo, Drive, etc.)
+    // Compartir por WhatsApp, Correo, etc.
     async function shareData() {
       if (records.length === 0) {
-        alert('No hay datos para compartir.');
+        alert('No hay registros para compartir.');
         return;
       }
 
       const dateStr = new Date().toISOString().slice(0, 10);
-      const filename = `inventario_${dateStr}.csv`;
-      const csvContent = buildCsvString();
+      const filename = `codigos_${dateStr}.csv`;
+      const csvContent = buildCsv();
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const file = new File([blob], filename, { type: 'text/csv' });
 
@@ -784,93 +617,14 @@
         try {
           await navigator.share({
             files: [file],
-            title: 'Reporte de Bodega / Inventario',
-            text: `Envío reporte con ${records.length} referencias escaneadas.`
+            title: 'Reporte de Códigos',
+            text: `Reporte con ${records.length} códigos guardados.`
           });
         } catch (err) {
-          if (err.name !== 'AbortError') {
-            exportData('csv');
-          }
+          if (err.name !== 'AbortError') exportData('csv');
         }
       } else {
-        // Fallback a descarga regular si el navegador no permite compartir archivos
         exportData('csv');
-      }
-    }
-
-    // 10. Catálogo Maestro (Subir CSV y vincular)
-    function openCatalogModal() {
-      document.getElementById('catalog-modal').classList.add('open');
-      updateCatalogModalInfo();
-    }
-
-    function closeCatalogModal() {
-      document.getElementById('catalog-modal').classList.remove('open');
-    }
-
-    function updateCatalogBadge() {
-      const count = Object.keys(catalog).length;
-      document.getElementById('catalog-btn').innerText = `📂 Catálogo (${count})`;
-    }
-
-    function updateCatalogModalInfo() {
-      const count = Object.keys(catalog).length;
-      document.getElementById('catalog-status-info').innerText = 
-        `Productos registrados actualmente: ${count}`;
-    }
-
-    function handleCatalogUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const text = e.target.result;
-        parseCatalogCsv(text);
-        event.target.value = '';
-      };
-      reader.readAsText(file);
-    }
-
-    function parseCatalogCsv(content) {
-      const lines = content.split(/\r\n|\n|\r/);
-      let count = 0;
-
-      lines.forEach((line, idx) => {
-        const trimmed = line.trim();
-        if (!trimmed) return;
-
-        // Soporta delimitador por coma o punto y coma
-        const delimiter = trimmed.includes(';') ? ';' : ',';
-        const cols = trimmed.split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
-
-        if (cols.length >= 2) {
-          const code = cols[0];
-          // Omitir fila de cabecera típica si contiene palabras clave
-          if (idx === 0 && (code.toLowerCase() === 'codigo' || code.toLowerCase() === 'code')) return;
-
-          const name = cols[1] || '';
-          const loc = cols[2] || '';
-          catalog[code] = { name: name, location: loc };
-          count++;
-        }
-      });
-
-      localStorage.setItem(CATALOG_KEY, JSON.stringify(catalog));
-      updateCatalogBadge();
-      updateCatalogModalInfo();
-      renderList();
-      alert(`¡Catálogo cargado con éxito! Se registraron ${count} productos.`);
-      closeCatalogModal();
-    }
-
-    function clearCatalog() {
-      if (confirm('¿Deseas vaciar el catálogo maestro en este dispositivo?')) {
-        catalog = {};
-        localStorage.removeItem(CATALOG_KEY);
-        updateCatalogBadge();
-        updateCatalogModalInfo();
-        renderList();
       }
     }
 
