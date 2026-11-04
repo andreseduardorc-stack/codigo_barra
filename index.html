@@ -213,6 +213,8 @@
       border-radius: 16px 16px 0 0;
       width: 100%;
       max-width: 500px;
+      max-height: 85vh;
+      overflow-y: auto;
       padding: 18px 16px 24px 16px;
       display: flex;
       flex-direction: column;
@@ -224,7 +226,7 @@
       to { transform: translateY(0); }
     }
     .modal-title { font-size: 1rem; font-weight: 700; color: var(--accent); }
-    .field-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .field-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px; display: block; }
     .modal-input {
       width: 100%;
       background: #0f172a;
@@ -232,11 +234,59 @@
       border-radius: 8px;
       padding: 10px 12px;
       color: var(--text-main);
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       outline: none;
     }
     .modal-input:focus { border-color: var(--accent); }
     .modal-input.code-style { font-family: monospace; font-weight: 700; color: #38bdf8; font-size: 1.1rem; }
+
+    /* Estilos para campos de comentarios dinámicos */
+    .comment-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .comment-input-wrap {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .comment-input-wrap input {
+      flex: 1;
+    }
+    .btn-remove-comment {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 6px 10px;
+      font-size: 1rem;
+      border-radius: 6px;
+    }
+    .btn-remove-comment:hover {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .btn-add-comment {
+      background: transparent;
+      border: 1px dashed var(--card-border);
+      color: var(--accent);
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-add-comment:hover, .btn-add-comment:active {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.1);
+    }
 
     .modal-actions {
       display: flex;
@@ -313,10 +363,12 @@
         <input type="text" id="modal-code" class="modal-input code-style" placeholder="Ej: 78012345678" />
       </div>
 
-      <div>
-        <label class="field-label">Comentario u Observación (Opcional)</label>
-        <input type="text" id="modal-comment" class="modal-input" placeholder="Ej: Caja dañada, Estante 3, Lote A..." />
-      </div>
+      <!-- Contenedor dinámico de comentarios -->
+      <div id="comments-container"></div>
+
+      <button type="button" class="btn-add-comment" onclick="addCommentField()">
+        ➕ Agregar otro comentario
+      </button>
 
       <div class="modal-actions">
         <button class="btn-save-confirm" onclick="saveRecordFromModal()">💾 Guardar</button>
@@ -466,22 +518,80 @@
       }, 150);
     }
 
-    // 3. Abrir ventana de guardado
+    // 3. Gestión de Campos de Comentarios Dinámicos
+    function resetCommentFields(initialComments = ['']) {
+      const container = document.getElementById('comments-container');
+      container.innerHTML = '';
+      initialComments.forEach((val) => {
+        appendCommentRow(val);
+      });
+      renumberCommentLabels();
+    }
+
+    function appendCommentRow(val = '') {
+      const container = document.getElementById('comments-container');
+      const count = container.children.length;
+
+      const row = document.createElement('div');
+      row.className = 'comment-row';
+      row.innerHTML = `
+        <label class="field-label">${count === 0 ? 'Comentario' : `Comentario ${count}`}</label>
+        <div class="comment-input-wrap">
+          <input type="text" class="modal-input modal-comment-field" value="${escapeHtml(val)}" placeholder="${count === 0 ? 'Primer comentario u observación...' : `Comentario adicional ${count}...`}" />
+          ${count > 0 ? `<button type="button" class="btn-remove-comment" onclick="removeCommentRow(this)" title="Quitar campo">✕</button>` : ''}
+        </div>
+      `;
+      container.appendChild(row);
+    }
+
+    function addCommentField() {
+      appendCommentRow('');
+      renumberCommentLabels();
+      const inputs = document.querySelectorAll('.modal-comment-field');
+      if (inputs.length > 0) {
+        inputs[inputs.length - 1].focus();
+      }
+    }
+
+    function removeCommentRow(btn) {
+      const row = btn.closest('.comment-row');
+      if (row) {
+        row.remove();
+        renumberCommentLabels();
+      }
+    }
+
+    function renumberCommentLabels() {
+      const rows = document.querySelectorAll('#comments-container .comment-row');
+      rows.forEach((row, idx) => {
+        const label = row.querySelector('.field-label');
+        const input = row.querySelector('.modal-comment-field');
+        if (idx === 0) {
+          label.innerText = 'Comentario';
+          input.placeholder = 'Primer comentario u observación...';
+        } else {
+          label.innerText = `comentario${idx}`;
+          input.placeholder = `Comentario adicional ${idx}...`;
+        }
+      });
+    }
+
+    // 4. Abrir ventana de guardado
     function openModalWithCode(code) {
       if (navigator.vibrate) navigator.vibrate(80);
       document.getElementById('modal-code').value = code || '';
-      document.getElementById('modal-comment').value = '';
+      resetCommentFields(['']);
       document.getElementById('save-modal').classList.add('open');
 
-      // Colocar cursor en el comentario para que el usuario escriba rápido
       setTimeout(() => {
-        document.getElementById('modal-comment').focus();
+        const firstInput = document.querySelector('.modal-comment-field');
+        if (firstInput) firstInput.focus();
       }, 150);
     }
 
     function openModalForManual() {
       document.getElementById('modal-code').value = '';
-      document.getElementById('modal-comment').value = '';
+      resetCommentFields(['']);
       document.getElementById('save-modal').classList.add('open');
 
       setTimeout(() => {
@@ -493,28 +603,35 @@
       document.getElementById('save-modal').classList.remove('open');
     }
 
-    // 4. Guardar en la lista (Solo se ejecuta al presionar "Guardar")
+    // 5. Guardar en la lista (Solo se ejecuta al presionar "Guardar")
     function saveRecordFromModal() {
       const codeInput = document.getElementById('modal-code');
-      const commentInput = document.getElementById('modal-comment');
-
       const code = codeInput.value.trim();
-      const comment = commentInput.value.trim();
 
       if (!code) {
         alert('Por favor ingresa o escanea un código.');
         return;
       }
 
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      // Obtener todos los comentarios ingresados
+      const commentInputs = document.querySelectorAll('.modal-comment-field');
+      const comments = [];
+      commentInputs.forEach(input => {
+        const val = input.value.trim();
+        if (val) comments.push(val);
+      });
 
-      // Guardar registro limpio (sin campos basura)
+      // Solo registrar fecha (año-mes-día), sin hora
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const dateOnly = `${year}-${month}-${day}`;
+
       records.unshift({
         code: code,
-        comment: comment,
-        time: timeStr,
-        timestamp: now.toISOString()
+        comments: comments,
+        date: dateOnly
       });
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
@@ -522,7 +639,20 @@
       renderList();
     }
 
-    // 5. Renderizado Limpio de la Lista
+    // Funciones auxiliares para compatibilidad de registros
+    function getRecordComments(r) {
+      if (Array.isArray(r.comments)) return r.comments;
+      if (r.comment) return [r.comment];
+      return [];
+    }
+
+    function getRecordDate(r) {
+      if (r.date) return r.date;
+      if (r.timestamp) return r.timestamp.slice(0, 10);
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    // 6. Renderizado Limpio de la Lista
     function renderList() {
       const container = document.getElementById('records-list');
       document.getElementById('item-counter').innerText = `${records.length} guardados`;
@@ -536,16 +666,25 @@
         return;
       }
 
-      container.innerHTML = records.map((r, index) => `
-        <div class="item-card">
-          <div class="item-main">
-            <div class="item-code">${escapeHtml(r.code)}</div>
-            ${r.comment ? `<div class="item-comment">💬 ${escapeHtml(r.comment)}</div>` : ''}
-            <div class="item-time">🕒 ${escapeHtml(r.time || '')}</div>
+      container.innerHTML = records.map((r, index) => {
+        const comms = getRecordComments(r);
+        const dateVal = getRecordDate(r);
+
+        return `
+          <div class="item-card">
+            <div class="item-main">
+              <div class="item-code">${escapeHtml(r.code)}</div>
+              ${comms.map((c, i) => `
+                <div class="item-comment">
+                  💬 ${i === 0 ? '' : `<b>#${i}:</b> `}${escapeHtml(c)}
+                </div>
+              `).join('')}
+              <div class="item-time">📅 ${escapeHtml(dateVal)}</div>
+            </div>
+            <button class="btn-delete" onclick="deleteItem(${index})" title="Eliminar de la lista">✕</button>
           </div>
-          <button class="btn-delete" onclick="deleteItem(${index})" title="Eliminar de la lista">✕</button>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function deleteItem(index) {
@@ -563,7 +702,7 @@
       }
     }
 
-    // 6. Linterna (Flash)
+    // 7. Linterna (Flash)
     async function toggleTorch() {
       if (!currentStream) return;
       const track = currentStream.getVideoTracks()[0];
@@ -578,15 +717,47 @@
       }
     }
 
-    // 7. Exportación Limpia (Solo Código, Comentario y Fecha/Hora)
+    // 8. Exportación CSV Dinámica: Codigo,Comentario,comentario1,comentario2,...,Fecha
     function buildCsv() {
-      let csv = '\uFEFFCodigo,Comentario,Fecha_Hora\r\n';
+      // Determinar la cantidad máxima de comentarios entre todos los registros
+      let maxComments = 1;
       records.forEach(r => {
-        const c = r.code.replace(/"/g, '""');
-        const comm = (r.comment || '').replace(/"/g, '""');
-        const date = r.timestamp ? r.timestamp.replace('T', ' ').slice(0, 19) : '';
-        csv += `"${c}","${comm}","${date}"\r\n`;
+        const len = getRecordComments(r).length;
+        if (len > maxComments) maxComments = len;
       });
+
+      // Encabezado dinámico: Codigo,Comentario,comentario1,comentario2,...,Fecha
+      const headerCols = ['Codigo', 'Comentario'];
+      for (let i = 1; i < maxComments; i++) {
+        headerCols.push(`comentario${i}`);
+      }
+      headerCols.push('Fecha');
+
+      let csv = '\uFEFF' + headerCols.join(',') + '\r\n';
+
+      records.forEach(r => {
+        const comms = getRecordComments(r);
+        const row = [];
+
+        // 1. Código
+        row.push(`"${r.code.replace(/"/g, '""')}"`);
+
+        // 2. Comentario principal
+        const firstComment = (comms[0] || '').replace(/"/g, '""');
+        row.push(`"${firstComment}"`);
+
+        // 3. Comentarios adicionales (comentario1, comentario2, etc.)
+        for (let i = 1; i < maxComments; i++) {
+          const extraComment = (comms[i] || '').replace(/"/g, '""');
+          row.push(`"${extraComment}"`);
+        }
+
+        // 4. Solo Fecha (sin hora)
+        row.push(`"${getRecordDate(r)}"`);
+
+        csv += row.join(',') + '\r\n';
+      });
+
       return csv;
     }
 
