@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Lector de Códigos & Inventario</title>
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="icon" type="image/png" href="icon-192.png" />
   <style>
     :root {
       --bg: #0f172a;
@@ -262,7 +266,7 @@
       cursor: pointer;
     }
   </style>
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script src="zxing.min.js"></script>
 </head>
 <body>
 
@@ -341,6 +345,13 @@
     document.addEventListener('DOMContentLoaded', () => {
       renderList();
       initScanner();
+
+      // Registro de Service Worker para funcionamiento 100% Offline (PWA)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+          console.log('Service Worker registro omitido:', err);
+        });
+      }
     });
 
     // 1. Inicializar Cámara y Motores
