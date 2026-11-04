@@ -1,7 +1,9 @@
 {
+  "id": "/codigo_barra/",
   "name": "Escáner Bodega & Inventario",
   "short_name": "BodegaScan",
-  "start_url": "./index.html",
+  "start_url": "/codigo_barra/",
+  "scope": "/codigo_barra/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
