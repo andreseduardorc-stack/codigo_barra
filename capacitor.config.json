@@ -1,0 +1,11 @@
+{
+  "appId": "cl.bodegascan.app",
+  "appName": "BodegaScan",
+  "webDir": "www",
+  "backgroundColor": "#0f172a",
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK"
+    }
+  }
+}

@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Lector de Códigos & Inventario</title>
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="manifest.json" />
@@ -19,14 +19,21 @@
       --danger: #ef4444;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
+      /* Márgenes del sistema (barra de estado / navegación). Capacitor inyecta --safe-area-inset-* en WebView antiguos. */
+      --sa-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+      --sa-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    body {
+      background-color: var(--bg); color: var(--text-main);
+      display: flex; flex-direction: column;
+      height: 100vh; height: 100dvh; overflow: hidden;
+    }
 
     /* Cabecera */
     header {
-      padding: 12px 16px;
+      padding: calc(12px + var(--sa-top)) 16px 12px 16px;
       background-color: var(--card-bg);
       display: flex;
       justify-content: space-between;
@@ -34,10 +41,11 @@
       border-bottom: 1px solid var(--card-border);
     }
     header h1 { font-size: 1.05rem; font-weight: 700; color: var(--accent); }
+    header h1 small { font-size: 0.65rem; color: var(--text-muted); font-weight: 500; margin-left: 4px; }
     #item-counter { font-size: 0.82rem; color: var(--text-muted); background: #0f172a; padding: 3px 10px; border-radius: 12px; }
 
     /* Contenedor de Cámara */
-    .scanner-container { position: relative; width: 100%; height: 36vh; min-height: 220px; background: #000; overflow: hidden; }
+    .scanner-container { position: relative; width: 100%; height: 36vh; min-height: 220px; background: #000; overflow: hidden; flex-shrink: 0; }
     video { width: 100%; height: 100%; object-fit: cover; }
 
     /* Mira de enfoque */
@@ -59,17 +67,50 @@
       color: var(--success); font-family: monospace; font-size: 0.85rem; font-weight: 700;
       padding: 5px 12px; border-radius: 20px; display: none; z-index: 10;
       box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .focus-badge.dup { border-color: #f59e0b; color: #f59e0b; }
+
+    /* Mensaje de error de cámara */
+    .cam-msg {
+      position: absolute; inset: 0; z-index: 20;
+      display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      padding: 20px; text-align: center; background: rgba(15, 23, 42, 0.92);
+      color: var(--text-main); font-size: 0.88rem; line-height: 1.4;
+    }
+    .cam-msg.show { display: flex; }
+    .cam-msg button {
+      background: var(--accent-btn); color: #fff; border: none; border-radius: 8px;
+      padding: 9px 18px; font-weight: 700; font-size: 0.88rem; cursor: pointer;
     }
 
     /* Botón Linterna */
     .torch-btn {
-      position: absolute; top: 12px; right: 12px;
-      width: 40px; height: 40px; border-radius: 50%; border: none;
+      position: absolute; top: calc(12px + var(--fs-top, 0px)); right: 12px;
+      width: 44px; height: 44px; border-radius: 50%; border: none;
       background: rgba(15, 23, 42, 0.85); color: #fff; font-size: 1.1rem;
       cursor: pointer; z-index: 10; display: none; align-items: center; justify-content: center;
       box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
     .torch-btn.active { background: #f59e0b; color: #000; }
+
+    /* Modo "escanear para un campo": la cámara ocupa toda la pantalla */
+    .fieldscan-title, .fieldscan-bar { display: none; }
+    body.field-scan { --fs-top: var(--sa-top); }
+    body.field-scan .scanner-container { position: fixed; inset: 0; height: auto; min-height: 0; z-index: 150; }
+    body.field-scan .modal-overlay { display: none !important; }
+    body.field-scan .focus-badge { bottom: calc(96px + var(--sa-bottom)); }
+    body.field-scan .cam-msg { padding-bottom: calc(100px + var(--sa-bottom)); }
+    body.field-scan .target-box { width: 85%; height: 30%; }
+    body.field-scan .fieldscan-title {
+      display: block; position: absolute; top: calc(14px + var(--sa-top)); left: 14px; right: 70px; z-index: 25;
+      background: rgba(15, 23, 42, 0.85); color: var(--accent); font-weight: 700; font-size: 0.9rem;
+      padding: 8px 12px; border-radius: 8px;
+    }
+    body.field-scan .fieldscan-bar {
+      display: flex; gap: 10px; position: absolute; left: 0; right: 0; bottom: 0; z-index: 25;
+      padding: 14px 14px calc(14px + var(--sa-bottom)) 14px; background: rgba(15, 23, 42, 0.9);
+    }
 
     /* Barra de Acción Principal: Capturar y Escribir */
     .action-panel {
@@ -144,7 +185,7 @@
     .list-container {
       flex: 1;
       overflow-y: auto;
-      padding: 10px 14px;
+      padding: 10px 14px calc(10px + var(--sa-bottom)) 14px;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -167,17 +208,19 @@
       color: #38bdf8;
       word-break: break-all;
     }
-    .item-comment {
+    .item-field {
       font-size: 0.82rem;
       color: #cbd5e1;
       margin-top: 3px;
       background: #0f172a;
       padding: 3px 8px;
       border-radius: 4px;
-      display: inline-block;
+      display: block;
+      width: fit-content;
       max-width: 100%;
       word-break: break-word;
     }
+    .item-field b { color: var(--text-muted); font-weight: 600; }
     .item-time {
       font-size: 0.7rem;
       color: var(--text-muted);
@@ -189,7 +232,7 @@
       color: #64748b;
       font-size: 1.1rem;
       cursor: pointer;
-      padding: 6px 10px;
+      padding: 8px 12px;
       border-radius: 6px;
     }
     .btn-delete:hover, .btn-delete:active { color: var(--danger); background: rgba(239, 68, 68, 0.15); }
@@ -201,7 +244,7 @@
       font-size: 0.85rem;
     }
 
-    /* Modal para Confirmar Código y Agregar Comentario */
+    /* Modal para Confirmar Código y Campos Adicionales */
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(3px);
       display: none; align-items: flex-end; justify-content: center; z-index: 100;
@@ -214,8 +257,9 @@
       width: 100%;
       max-width: 500px;
       max-height: 85vh;
+      max-height: 85dvh;
       overflow-y: auto;
-      padding: 18px 16px 24px 16px;
+      padding: 18px 16px calc(24px + var(--sa-bottom)) 16px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -229,46 +273,41 @@
     .field-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px; display: block; }
     .modal-input {
       width: 100%;
+      min-width: 0;
       background: #0f172a;
       border: 1px solid var(--card-border);
       border-radius: 8px;
       padding: 10px 12px;
       color: var(--text-main);
-      font-size: 0.92rem;
+      font-size: 1rem;
       outline: none;
     }
     .modal-input:focus { border-color: var(--accent); }
     .modal-input.code-style { font-family: monospace; font-weight: 700; color: #38bdf8; font-size: 1.1rem; }
 
-    /* Estilos para campos de comentarios dinámicos */
-    .comment-row {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-bottom: 8px;
+    .input-row { display: flex; gap: 6px; align-items: center; }
+    .input-row .modal-input { flex: 1; }
+    .btn-scan-field {
+      flex-shrink: 0; width: 44px; height: 44px;
+      background: var(--accent-btn); color: #fff; border: none; border-radius: 8px;
+      font-size: 1.1rem; cursor: pointer;
     }
-    .comment-input-wrap {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-    .comment-input-wrap input {
-      flex: 1;
-    }
-    .btn-remove-comment {
+    .btn-scan-field:active { transform: scale(0.96); }
+
+    /* Campos adicionales dinámicos */
+    .field-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+    .btn-remove-field {
+      flex-shrink: 0;
       background: transparent;
       border: none;
       color: #94a3b8;
       cursor: pointer;
-      padding: 6px 10px;
+      width: 36px; height: 44px;
       font-size: 1rem;
       border-radius: 6px;
     }
-    .btn-remove-comment:hover {
-      color: var(--danger);
-      background: rgba(239, 68, 68, 0.15);
-    }
-    .btn-add-comment {
+    .btn-remove-field:hover { color: var(--danger); background: rgba(239, 68, 68, 0.15); }
+    .btn-add-field {
       background: transparent;
       border: 1px dashed var(--card-border);
       color: var(--accent);
@@ -283,16 +322,12 @@
       gap: 6px;
       transition: all 0.2s;
     }
-    .btn-add-comment:hover, .btn-add-comment:active {
+    .btn-add-field:hover, .btn-add-field:active {
       border-color: var(--accent);
       background: rgba(56, 189, 248, 0.1);
     }
 
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 6px;
-    }
+    .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
     .btn-save-confirm {
       flex: 1.6;
       background: var(--success);
@@ -315,60 +350,81 @@
       border-radius: 8px;
       cursor: pointer;
     }
+
+    /* Aviso flotante (deshacer, confirmaciones) */
+    .toast {
+      position: fixed; left: 50%; bottom: calc(18px + var(--sa-bottom)); transform: translateX(-50%);
+      z-index: 300; display: none; align-items: center; gap: 14px;
+      background: #f8fafc; color: #0f172a; font-size: 0.86rem; font-weight: 600;
+      padding: 10px 14px; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      max-width: calc(100% - 32px);
+    }
+    .toast.show { display: flex; }
+    .toast button { background: none; border: none; color: #0284c7; font-weight: 800; font-size: 0.86rem; cursor: pointer; padding: 4px; }
   </style>
   <script src="zxing.min.js"></script>
 </head>
 <body>
 
   <header>
-    <h1>Escáner & Inventario</h1>
-    <span id="item-counter">0 códigos</span>
+    <h1>Escáner & Inventario <small id="app-version"></small></h1>
+    <span id="item-counter">0 guardados</span>
   </header>
 
   <!-- Visor de Cámara -->
-  <div class="scanner-container">
-    <video id="preview" playsinline autoplay muted></video>
+  <div class="scanner-container" id="scanner-container">
+    <!-- poster transparente: evita el ícono ▶ del WebView mientras la cámara está pausada -->
+    <video id="preview" playsinline autoplay muted poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
     <div class="target-box" id="target-box"></div>
-    <div class="focus-badge" id="focus-badge">Código detectado</div>
-    <button class="torch-btn" id="torch-btn" onclick="toggleTorch()" title="Linterna">🔦</button>
+    <div class="focus-badge" id="focus-badge" aria-live="polite">Código detectado</div>
+    <button class="torch-btn" id="torch-btn" onclick="toggleTorch()" title="Linterna" aria-label="Encender o apagar linterna">🔦</button>
+
+    <div class="cam-msg" id="cam-msg" role="alert">
+      <p id="cam-msg-text">No se pudo iniciar la cámara.</p>
+      <button type="button" onclick="startCamera()">🔄 Reintentar</button>
+    </div>
+
+    <!-- Solo visible al escanear para un campo del formulario -->
+    <div class="fieldscan-title" id="fieldscan-title">Escaneando</div>
+    <div class="fieldscan-bar">
+      <button class="btn-capture" id="btn-capture-field" onclick="handleFieldCaptureClick()">📸 Capturar</button>
+      <button class="btn-manual" onclick="cancelFieldScan()">✕ Volver</button>
+    </div>
   </div>
 
   <!-- Botones de Acción (El usuario decide cuándo escanear o escribir) -->
   <div class="action-panel">
-    <button class="btn-capture" id="btn-capture" onclick="handleCaptureClick()">
-      📸 Escanear Ahora
-    </button>
-    <button class="btn-manual" onclick="openModalForManual()">
-      ⌨️ Escribir
-    </button>
+    <button class="btn-capture" id="btn-capture" onclick="handleCaptureClick()">📸 Escanear Ahora</button>
+    <button class="btn-manual" onclick="openModalForManual()">⌨️ Escribir</button>
   </div>
 
   <!-- Barra de Exportación -->
   <div class="export-bar">
-    <button class="btn-export btn-csv" onclick="exportData('csv')">📄 Descargar CSV</button>
+    <button class="btn-export btn-csv" onclick="exportData()">📄 Descargar CSV</button>
     <button class="btn-export btn-share" onclick="shareData()">📲 Compartir</button>
-    <button class="btn-export btn-clear" onclick="clearAll()">🗑️</button>
+    <button class="btn-export btn-clear" onclick="clearAll()" title="Vaciar lista" aria-label="Vaciar toda la lista">🗑️</button>
   </div>
 
   <!-- Lista Limpia de Códigos Guardados -->
   <div class="list-container" id="records-list"></div>
 
-  <!-- Ventana de Confirmación y Comentario -->
+  <!-- Ventana de Confirmación y Campos Adicionales -->
   <div class="modal-overlay" id="save-modal">
-    <div class="modal-sheet">
-      <div class="modal-title">Guardar Registro</div>
-      
+    <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-title" id="modal-title">Guardar Registro</div>
+
       <div>
-        <label class="field-label">Código</label>
-        <input type="text" id="modal-code" class="modal-input code-style" placeholder="Ej: 78012345678" />
+        <label class="field-label" for="modal-code">Código</label>
+        <div class="input-row">
+          <input type="text" id="modal-code" class="modal-input code-style" placeholder="Ej: 78012345678" autocomplete="off" />
+          <button type="button" class="btn-scan-field" onclick="startFieldScan(document.getElementById('modal-code'), 'Código')" title="Escanear código" aria-label="Escanear código principal">📷</button>
+        </div>
       </div>
 
-      <!-- Contenedor dinámico de comentarios -->
-      <div id="comments-container"></div>
+      <!-- Contenedor dinámico de campos adicionales -->
+      <div id="fields-container"></div>
 
-      <button type="button" class="btn-add-comment" onclick="addCommentField()">
-        ➕ Agregar otro comentario
-      </button>
+      <button type="button" class="btn-add-field" onclick="addExtraField()">➕ Agregar campo adicional</button>
 
       <div class="modal-actions">
         <button class="btn-save-confirm" onclick="saveRecordFromModal()">💾 Guardar</button>
@@ -377,94 +433,293 @@
     </div>
   </div>
 
+  <div class="toast" id="toast" role="status"><span id="toast-text"></span><button type="button" id="toast-action"></button></div>
+
   <script>
+    const APP_VERSION = '2.0.0';
     const STORAGE_KEY = 'bodega_clean_records_v1';
-    let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+    // Formatos que se buscan. Quitar los que no se usen reduce lecturas falsas y consumo.
+    const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'itf', 'codabar', 'qr_code', 'data_matrix', 'pdf417'];
+    const ZXING_FORMATS = ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'CODE_128', 'CODE_39', 'CODE_93', 'ITF', 'CODABAR', 'QR_CODE', 'DATA_MATRIX', 'PDF_417'];
+
+    const isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+
+    let records = loadRecords();
 
     // Detección en memoria (solo para enfocar, NUNCA guarda automáticamente)
     let latestSeenCode = '';
     let latestSeenTime = 0;
-    
+
     let barcodeDetector = null;
     let zxingReader = null;
+    let zxingCanvas = null;
+    let zxingCtx = null;
     let currentStream = null;
+    let cameraStarting = false;
+    let loopTimer = null;
     let isTorchOn = false;
+
+    // Campo del formulario que recibirá el próximo código escaneado (null = flujo principal)
+    let scanTarget = null;
 
     const video = document.getElementById('preview');
     const targetBox = document.getElementById('target-box');
     const focusBadge = document.getElementById('focus-badge');
+    const modalEl = document.getElementById('save-modal');
 
     document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('app-version').textContent = 'v' + APP_VERSION;
       renderList();
-      initScanner();
+      if (isNative && document.readyState !== 'complete') {
+        // En la app Android, pedir la cámara recién cuando la pantalla terminó de cargar
+        window.addEventListener('load', () => setTimeout(startCamera, 300), { once: true });
+      } else {
+        startCamera();
+      }
 
-      // Registro de Service Worker para funcionamiento 100% Offline (PWA)
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').catch(err => {
+      // Service Worker para funcionamiento offline como PWA (en la app Android los archivos ya van dentro del APK)
+      if (!isNative && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
+        navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(err => {
           console.log('Service Worker registro omitido:', err);
         });
       }
     });
 
-    // 1. Inicializar Cámara y Motores
-    async function initScanner() {
+    // ---------- Persistencia ----------
+    function loadRecords() {
       try {
-        currentStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            focusMode: "continuous"
-          },
-          audio: false
-        });
-        video.srcObject = currentStream;
-        await video.play();
-
-        // Linterna
-        const track = currentStream.getVideoTracks()[0];
-        if (track && track.getCapabilities && track.getCapabilities().torch) {
-          document.getElementById('torch-btn').style.display = 'flex';
-        }
-
-        // Configurar detección pasiva en visor
-        if ('BarcodeDetector' in window) {
-          const supported = await BarcodeDetector.getSupportedFormats();
-          barcodeDetector = new BarcodeDetector({ formats: supported });
-          startNativePassiveLoop();
-        } else {
-          startZXingPassiveLoop();
-        }
-      } catch (err) {
-        console.error('Error al iniciar cámara:', err);
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.error('Registros ilegibles en almacenamiento:', e);
+        return [];
       }
     }
 
-    // Loop pasivo nativo: sólo registra qué código está frente a la cámara
-    function startNativePassiveLoop() {
-      const loop = async () => {
-        if (video.readyState === video.HAVE_ENOUGH_DATA && barcodeDetector) {
-          try {
-            const codes = await barcodeDetector.detect(video);
-            if (codes && codes.length > 0) {
-              registerPassiveSighting(codes[0].rawValue);
-            }
-          } catch (e) {}
-        }
-        requestAnimationFrame(loop);
-      };
-      requestAnimationFrame(loop);
+    function persist() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        return true;
+      } catch (e) {
+        alert('No se pudo guardar en el teléfono (almacenamiento lleno o bloqueado). Exporta el CSV para no perder datos.');
+        return false;
+      }
     }
 
-    // Loop pasivo ZXing: fallback universal
-    function startZXingPassiveLoop() {
-      zxingReader = new ZXing.BrowserMultiFormatReader();
-      zxingReader.decodeFromVideoElement(video, (result) => {
-        if (result) {
-          registerPassiveSighting(result.getText());
-        }
-      });
+    // ---------- Fechas (siempre hora local del teléfono) ----------
+    function localDate(d = new Date()) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
     }
+
+    // ---------- 1. Cámara y motores de lectura ----------
+    function cameraErrorMessage(err) {
+      const name = err && err.name;
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        return isNative
+          ? 'Permiso de cámara denegado. Actívalo en Ajustes › Apps › BodegaScan › Permisos y presiona Reintentar.'
+          : 'Permiso de cámara denegado. Permite la cámara para este sitio en el navegador y presiona Reintentar.';
+      }
+      if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'No se encontró una cámara en este dispositivo.';
+      if (name === 'NotReadableError' || name === 'AbortError') return 'La cámara está siendo usada por otra aplicación. Ciérrala y presiona Reintentar.';
+      return 'No se pudo iniciar la cámara. Puedes seguir ingresando códigos con «Escribir».';
+    }
+
+    function showCamError(text) {
+      document.getElementById('cam-msg-text').textContent = text;
+      document.getElementById('cam-msg').classList.add('show');
+    }
+
+    function hideCamError() {
+      document.getElementById('cam-msg').classList.remove('show');
+    }
+
+    async function startCamera() {
+      if (currentStream || cameraStarting) return;
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        const insecure = !isNative && location.protocol !== 'https:' && location.hostname !== 'localhost';
+        showCamError(insecure
+          ? 'La cámara solo funciona si la página se abre con https://. Puedes seguir usando «Escribir».'
+          : 'Este navegador no permite usar la cámara. Puedes seguir usando «Escribir».');
+        return;
+      }
+
+      cameraStarting = true;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+
+        // Si mientras se pedía permiso la app pasó a segundo plano, liberar de inmediato
+        if (document.hidden) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+
+        currentStream = stream;
+        hideCamError();
+        video.srcObject = stream;
+        try { await video.play(); } catch (e) { /* autoplay ya activo */ }
+
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          // Si el sistema corta la cámara (otra app, bloqueo de pantalla), reintentar al volver
+          track.addEventListener('ended', () => {
+            if (currentStream === stream) {
+              stopCamera();
+              if (!document.hidden) setTimeout(startCamera, 600);
+            }
+          });
+        }
+
+        // Linterna
+        isTorchOn = false;
+        const torchBtn = document.getElementById('torch-btn');
+        torchBtn.classList.remove('active');
+        const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+        torchBtn.style.display = caps && caps.torch ? 'flex' : 'none';
+
+        await setupEngine();
+        scheduleDetection();
+      } catch (err) {
+        console.error('Error al iniciar cámara:', err);
+        showCamError(cameraErrorMessage(err));
+      } finally {
+        cameraStarting = false;
+      }
+    }
+
+    function stopCamera() {
+      clearTimeout(loopTimer);
+      loopTimer = null;
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+      }
+      video.srcObject = null;
+      isTorchOn = false;
+      const torchBtn = document.getElementById('torch-btn');
+      torchBtn.classList.remove('active');
+      torchBtn.style.display = 'none';
+    }
+
+    async function setupEngine() {
+      if (barcodeDetector || zxingReader) return;
+
+      if ('BarcodeDetector' in window) {
+        try {
+          const supported = await BarcodeDetector.getSupportedFormats();
+          const formats = FORMATS.filter(f => supported.includes(f));
+          if (formats.length) {
+            barcodeDetector = new BarcodeDetector({ formats });
+            return;
+          }
+        } catch (e) {
+          console.warn('BarcodeDetector no disponible, se usa ZXing:', e);
+        }
+      }
+
+      if (window.ZXing) {
+        const hints = new Map();
+        const formats = ZXING_FORMATS.map(n => ZXing.BarcodeFormat[n]).filter(v => v !== undefined);
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        zxingReader = new ZXing.MultiFormatReader();
+        zxingReader.setHints(hints);
+        zxingCanvas = document.createElement('canvas');
+        zxingCtx = zxingCanvas.getContext('2d', { willReadFrequently: true });
+      } else {
+        showCamError('No se pudo cargar el motor de lectura. Puedes seguir usando «Escribir».');
+      }
+    }
+
+    // Región del video que el usuario realmente ve (object-fit: cover), en píxeles del video
+    function visibleVideoRegion() {
+      const vw = video.videoWidth, vh = video.videoHeight;
+      const cw = video.clientWidth || vw, ch = video.clientHeight || vh;
+      const scale = Math.max(cw / vw, ch / vh);
+      const w = Math.min(vw, cw / scale), h = Math.min(vh, ch / scale);
+      return { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
+    }
+
+    async function detectOnce() {
+      if (video.readyState < 2 || !video.videoWidth) return null;
+
+      if (barcodeDetector) {
+        const codes = await barcodeDetector.detect(video);
+        if (!codes || codes.length === 0) return null;
+        // Si hay varios códigos en cuadro, elegir el más cercano al centro de la mira
+        const cx = video.videoWidth / 2, cy = video.videoHeight / 2;
+        let best = codes[0], bestDist = Infinity;
+        for (const c of codes) {
+          const b = c.boundingBox;
+          if (!b) continue;
+          const d = (b.x + b.width / 2 - cx) ** 2 + (b.y + b.height / 2 - cy) ** 2;
+          if (d < bestDist) { bestDist = d; best = c; }
+        }
+        return best.rawValue;
+      }
+
+      if (zxingReader) {
+        // Recortar al área de la mira: más rápido y prioriza el código centrado
+        const r = visibleVideoRegion();
+        const fullScreen = !!scanTarget; // en pantalla completa la mira es más baja (ver CSS .target-box)
+        const sw = r.w * (fullScreen ? 0.95 : 0.85), sh = r.h * (fullScreen ? 0.4 : 0.7);
+        const sx = (video.videoWidth - sw) / 2, sy = (video.videoHeight - sh) / 2;
+        const scale = Math.min(1, 960 / sw);
+        zxingCanvas.width = Math.max(1, Math.round(sw * scale));
+        zxingCanvas.height = Math.max(1, Math.round(sh * scale));
+        zxingCtx.drawImage(video, sx, sy, sw, sh, 0, 0, zxingCanvas.width, zxingCanvas.height);
+        try {
+          const source = new ZXing.HTMLCanvasElementLuminanceSource(zxingCanvas);
+          const bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(source));
+          return zxingReader.decodeWithState(bitmap).getText();
+        } catch (e) {
+          return null; // NotFoundException: no hay código en este cuadro
+        } finally {
+          zxingReader.reset();
+        }
+      }
+      return null;
+    }
+
+    function isModalOpen() {
+      return modalEl.classList.contains('open');
+    }
+
+    // Solo se analiza la imagen cuando sirve: app visible y sin el formulario tapando la cámara
+    function detectionWanted() {
+      return !document.hidden && (!isModalOpen() || !!scanTarget);
+    }
+
+    function scheduleDetection() {
+      clearTimeout(loopTimer);
+      if (!currentStream) return;
+      const interval = barcodeDetector ? 120 : 220;
+      loopTimer = setTimeout(async () => {
+        if (detectionWanted()) {
+          try {
+            const value = await detectOnce();
+            if (value) registerPassiveSighting(value);
+          } catch (e) { /* cuadro inválido, seguir */ }
+        }
+        scheduleDetection();
+      }, interval);
+    }
+
+    // Liberar la cámara en segundo plano (batería) y retomarla al volver
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopCamera();
+      else startCamera();
+    });
+    // Eventos de pausa/reanudación que emite la app nativa (Capacitor)
+    document.addEventListener('pause', stopCamera);
+    document.addEventListener('resume', () => startCamera());
 
     // Señal visual de que la cámara ve un código (sin guardarlo)
     function registerPassiveSighting(val) {
@@ -472,8 +727,10 @@
       latestSeenCode = String(val).trim();
       latestSeenTime = Date.now();
 
+      const dupInForm = scanTarget && valueInForm(latestSeenCode, scanTarget);
       targetBox.classList.add('focused');
-      focusBadge.innerText = `Enfocado: ${latestSeenCode}`;
+      focusBadge.classList.toggle('dup', !!dupInForm);
+      focusBadge.textContent = dupInForm ? `Ya capturado: ${latestSeenCode}` : `Enfocado: ${latestSeenCode}`;
       focusBadge.style.display = 'block';
     }
 
@@ -485,162 +742,235 @@
       }
     }, 400);
 
-    // 2. Botón de Escanear: El usuario decide cuándo capturar
-    function handleCaptureClick() {
-      const btn = document.getElementById('btn-capture');
-
-      // Si ya hay un código en foco en este instante:
+    // ---------- 2. Captura bajo demanda ----------
+    // Usa el código en foco o busca activamente ~2 s. El usuario decide cuándo capturar.
+    function captureWithButton(btn, idleLabel, onFound) {
       if (latestSeenCode && (Date.now() - latestSeenTime < 1500)) {
-        openModalWithCode(latestSeenCode);
+        onFound(latestSeenCode);
         return;
       }
+      if (!currentStream) {
+        alert('La cámara no está activa. Usa «Escribir» o presiona Reintentar en el visor.');
+        return;
+      }
+      if (btn.classList.contains('scanning')) return;
 
-      // Si aún no está enfocado, busca activamente durante 2 segundos
       btn.classList.add('scanning');
-      btn.innerText = 'Buscando en la mira...';
-
+      btn.textContent = 'Buscando en la mira...';
       const startTime = Date.now();
       const checkInterval = setInterval(() => {
-        if (latestSeenCode && (Date.now() - latestSeenTime < 1000)) {
+        const found = latestSeenCode && (Date.now() - latestSeenTime < 1000);
+        if (found || Date.now() - startTime > 2200) {
           clearInterval(checkInterval);
           btn.classList.remove('scanning');
-          btn.innerHTML = '📸 Escanear Ahora';
-          openModalWithCode(latestSeenCode);
-          return;
-        }
-
-        if (Date.now() - startTime > 2200) {
-          clearInterval(checkInterval);
-          btn.classList.remove('scanning');
-          btn.innerHTML = '📸 Escanear Ahora';
-          alert('No se detectó ningún código. Enfócalo dentro del recuadro e inténtalo de nuevo.');
+          btn.textContent = idleLabel;
+          if (found) onFound(latestSeenCode);
+          else alert('No se detectó ningún código. Enfócalo dentro del recuadro e inténtalo de nuevo.');
         }
       }, 150);
     }
 
-    // 3. Gestión de Campos de Comentarios Dinámicos
-    function resetCommentFields(initialComments = ['']) {
-      const container = document.getElementById('comments-container');
-      container.innerHTML = '';
-      initialComments.forEach((val) => {
-        appendCommentRow(val);
-      });
-      renumberCommentLabels();
+    function handleCaptureClick() {
+      captureWithButton(document.getElementById('btn-capture'), '📸 Escanear Ahora', openModalWithCode);
     }
 
-    function appendCommentRow(val = '') {
-      const container = document.getElementById('comments-container');
-      const count = container.children.length;
+    // ---------- 3. Escanear hacia un campo del formulario ----------
+    function startFieldScan(input, label) {
+      if (document.activeElement) document.activeElement.blur(); // cerrar el teclado
+      scanTarget = input;
+      latestSeenCode = '';
+      latestSeenTime = 0;
+      document.getElementById('fieldscan-title').textContent = `📷 Escaneando: ${label}`;
+      document.body.classList.add('field-scan');
+      if (!currentStream) startCamera();
+    }
+
+    function exitFieldScan() {
+      scanTarget = null;
+      document.body.classList.remove('field-scan');
+      focusBadge.classList.remove('dup');
+    }
+
+    // Al volver del escáner no se enfoca ningún campo: abrir el teclado taparía el formulario
+    function cancelFieldScan() {
+      exitFieldScan();
+    }
+
+    function handleFieldCaptureClick() {
+      const btn = document.getElementById('btn-capture-field');
+      captureWithButton(btn, '📸 Capturar', (code) => {
+        const input = scanTarget;
+        if (!input) return;
+        if (valueInForm(code, input) && !confirm(`El código ${code} ya está en este registro. ¿Usarlo igual?`)) return;
+        if (navigator.vibrate) navigator.vibrate(80);
+        input.value = code;
+        exitFieldScan();
+      });
+    }
+
+    // ¿El valor ya está en otro campo del formulario abierto?
+    function valueInForm(value, exceptInput) {
+      return allFormInputs().some(el => el !== exceptInput && el.value.trim() === value);
+    }
+
+    function allFormInputs() {
+      return [document.getElementById('modal-code'), ...document.querySelectorAll('.modal-extra-field')];
+    }
+
+    // ---------- 4. Campos adicionales dinámicos ----------
+    function resetExtraFields(initialValues = ['']) {
+      const container = document.getElementById('fields-container');
+      container.innerHTML = '';
+      initialValues.forEach(val => appendFieldRow(val));
+      renumberFieldLabels();
+    }
+
+    function appendFieldRow(val = '') {
+      const container = document.getElementById('fields-container');
+      const isFirst = container.children.length === 0;
 
       const row = document.createElement('div');
-      row.className = 'comment-row';
-      row.innerHTML = `
-        <label class="field-label">${count === 0 ? 'Comentario' : `Comentario ${count}`}</label>
-        <div class="comment-input-wrap">
-          <input type="text" class="modal-input modal-comment-field" value="${escapeHtml(val)}" placeholder="${count === 0 ? 'Primer comentario u observación...' : `Comentario adicional ${count}...`}" />
-          ${count > 0 ? `<button type="button" class="btn-remove-comment" onclick="removeCommentRow(this)" title="Quitar campo">✕</button>` : ''}
-        </div>
-      `;
+      row.className = 'field-row';
+
+      const label = document.createElement('label');
+      label.className = 'field-label';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'input-row';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'modal-input modal-extra-field';
+      input.autocomplete = 'off';
+      input.value = val;
+
+      const scanBtn = document.createElement('button');
+      scanBtn.type = 'button';
+      scanBtn.className = 'btn-scan-field';
+      scanBtn.textContent = '📷';
+      scanBtn.title = 'Escanear código para este campo';
+      scanBtn.addEventListener('click', () => startFieldScan(input, label.textContent));
+
+      wrap.append(input, scanBtn);
+
+      if (!isFirst) {
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn-remove-field';
+        removeBtn.textContent = '✕';
+        removeBtn.title = 'Quitar campo';
+        removeBtn.addEventListener('click', () => { row.remove(); renumberFieldLabels(); });
+        wrap.append(removeBtn);
+      }
+
+      row.append(label, wrap);
       container.appendChild(row);
+      return input;
     }
 
-    function addCommentField() {
-      appendCommentRow('');
-      renumberCommentLabels();
-      const inputs = document.querySelectorAll('.modal-comment-field');
-      if (inputs.length > 0) {
-        inputs[inputs.length - 1].focus();
-      }
+    function addExtraField() {
+      const input = appendFieldRow('');
+      renumberFieldLabels();
+      input.focus();
     }
 
-    function removeCommentRow(btn) {
-      const row = btn.closest('.comment-row');
-      if (row) {
-        row.remove();
-        renumberCommentLabels();
-      }
-    }
-
-    function renumberCommentLabels() {
-      const rows = document.querySelectorAll('#comments-container .comment-row');
-      rows.forEach((row, idx) => {
+    function renumberFieldLabels() {
+      document.querySelectorAll('#fields-container .field-row').forEach((row, idx) => {
+        const n = idx + 1;
         const label = row.querySelector('.field-label');
-        const input = row.querySelector('.modal-comment-field');
-        if (idx === 0) {
-          label.innerText = 'Comentario';
-          input.placeholder = 'Primer comentario u observación...';
-        } else {
-          label.innerText = `comentario${idx}`;
-          input.placeholder = `Comentario adicional ${idx}...`;
-        }
+        const input = row.querySelector('.modal-extra-field');
+        const scanBtn = row.querySelector('.btn-scan-field');
+        const id = `extra-field-${n}`;
+        label.textContent = `Campo adicional ${n}`;
+        label.htmlFor = id;
+        input.id = id;
+        input.placeholder = `Texto o código escaneado (campo ${n})...`;
+        scanBtn.setAttribute('aria-label', `Escanear código para campo adicional ${n}`);
       });
     }
 
-    // 4. Abrir ventana de guardado
+    // Enter (o lector Bluetooth que termina en Enter) pasa al siguiente campo; en el último, guarda
+    modalEl.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || !e.target.classList.contains('modal-input')) return;
+      e.preventDefault();
+      const inputs = allFormInputs();
+      const idx = inputs.indexOf(e.target);
+      if (idx >= 0 && idx < inputs.length - 1) inputs[idx + 1].focus();
+      else saveRecordFromModal();
+    });
+
+    // ---------- 5. Ventana de guardado ----------
+    function openModal() {
+      modalEl.classList.add('open');
+      // Entrada en el historial: el botón Atrás de Android cierra la ventana en vez de salir de la app
+      if (!history.state || !history.state.modal) history.pushState({ modal: true }, '');
+    }
+
     function openModalWithCode(code) {
       if (navigator.vibrate) navigator.vibrate(80);
       document.getElementById('modal-code').value = code || '';
-      resetCommentFields(['']);
-      document.getElementById('save-modal').classList.add('open');
-
+      resetExtraFields(['']);
+      openModal();
       setTimeout(() => {
-        const firstInput = document.querySelector('.modal-comment-field');
-        if (firstInput) firstInput.focus();
+        const first = document.querySelector('.modal-extra-field');
+        if (first) first.focus();
       }, 150);
     }
 
     function openModalForManual() {
       document.getElementById('modal-code').value = '';
-      resetCommentFields(['']);
-      document.getElementById('save-modal').classList.add('open');
-
-      setTimeout(() => {
-        document.getElementById('modal-code').focus();
-      }, 150);
+      resetExtraFields(['']);
+      openModal();
+      setTimeout(() => document.getElementById('modal-code').focus(), 150);
     }
 
     function closeModal() {
-      document.getElementById('save-modal').classList.remove('open');
+      if (!isModalOpen()) return;
+      exitFieldScan();
+      modalEl.classList.remove('open');
+      if (history.state && history.state.modal) history.back();
     }
 
-    // 5. Guardar en la lista (Solo se ejecuta al presionar "Guardar")
-    function saveRecordFromModal() {
-      const codeInput = document.getElementById('modal-code');
-      const code = codeInput.value.trim();
+    window.addEventListener('popstate', () => {
+      if (scanTarget) {
+        // Atrás durante el escaneo de un campo: volver al formulario, no cerrarlo
+        cancelFieldScan();
+        history.pushState({ modal: true }, '');
+        return;
+      }
+      if (isModalOpen()) modalEl.classList.remove('open');
+    });
 
+    // ---------- 6. Guardar en la lista (solo al presionar "Guardar") ----------
+    function saveRecordFromModal() {
+      const code = document.getElementById('modal-code').value.trim();
       if (!code) {
         alert('Por favor ingresa o escanea un código.');
         return;
       }
 
-      // Obtener todos los comentarios ingresados
-      const commentInputs = document.querySelectorAll('.modal-comment-field');
-      const comments = [];
-      commentInputs.forEach(input => {
+      const fields = [];
+      document.querySelectorAll('.modal-extra-field').forEach(input => {
         const val = input.value.trim();
-        if (val) comments.push(val);
+        if (val) fields.push(val);
       });
 
-      // Solo registrar fecha (año-mes-día), sin hora
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const dateOnly = `${year}-${month}-${day}`;
+      // Aviso de duplicado: el código ya existe como código principal o en un campo de otro registro
+      const existing = records.find(r => r.code === code || getRecordFields(r).includes(code));
+      if (existing) {
+        const when = getRecordDate(existing);
+        if (!confirm(`El código ${code} ya está registrado${when ? ' (' + when + ')' : ''}. ¿Guardarlo de todas formas?`)) return;
+      }
 
-      records.unshift({
-        code: code,
-        comments: comments,
-        date: dateOnly
-      });
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      records.unshift({ code, fields, date: localDate() });
+      persist();
       closeModal();
       renderList();
     }
 
-    // Funciones auxiliares para compatibilidad de registros
-    function getRecordComments(r) {
+    // Compatibilidad con registros de versiones anteriores (comment / comments / timestamp)
+    function getRecordFields(r) {
+      if (Array.isArray(r.fields)) return r.fields;
       if (Array.isArray(r.comments)) return r.comments;
       if (r.comment) return [r.comment];
       return [];
@@ -648,14 +978,17 @@
 
     function getRecordDate(r) {
       if (r.date) return r.date;
-      if (r.timestamp) return r.timestamp.slice(0, 10);
-      return new Date().toISOString().slice(0, 10);
+      if (r.timestamp) {
+        const d = new Date(r.timestamp);
+        if (!isNaN(d)) return localDate(d);
+      }
+      return ''; // fecha desconocida: no se inventa
     }
 
-    // 6. Renderizado Limpio de la Lista
+    // ---------- 7. Lista ----------
     function renderList() {
       const container = document.getElementById('records-list');
-      document.getElementById('item-counter').innerText = `${records.length} guardados`;
+      document.getElementById('item-counter').textContent = `${records.length} guardados`;
 
       if (records.length === 0) {
         container.innerHTML = `
@@ -667,111 +1000,107 @@
       }
 
       container.innerHTML = records.map((r, index) => {
-        const comms = getRecordComments(r);
+        const fields = getRecordFields(r);
         const dateVal = getRecordDate(r);
-
         return `
           <div class="item-card">
             <div class="item-main">
               <div class="item-code">${escapeHtml(r.code)}</div>
-              ${comms.map((c, i) => `
-                <div class="item-comment">
-                  💬 ${i === 0 ? '' : `<b>#${i}:</b> `}${escapeHtml(c)}
-                </div>
-              `).join('')}
-              <div class="item-time">📅 ${escapeHtml(dateVal)}</div>
+              ${fields.map((f, i) => `<div class="item-field"><b>${i + 1}:</b> ${escapeHtml(f)}</div>`).join('')}
+              <div class="item-time">📅 ${dateVal ? escapeHtml(dateVal) : 'sin fecha'}</div>
             </div>
-            <button class="btn-delete" onclick="deleteItem(${index})" title="Eliminar de la lista">✕</button>
+            <button class="btn-delete" onclick="deleteItem(${index})" title="Eliminar de la lista" aria-label="Eliminar ${escapeHtml(r.code)}">✕</button>
           </div>
         `;
       }).join('');
     }
 
     function deleteItem(index) {
-      records.splice(index, 1);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      const [removed] = records.splice(index, 1);
+      if (!removed) return;
+      persist();
       renderList();
+      showToast(`Eliminado ${removed.code}`, 'Deshacer', () => {
+        records.splice(Math.min(index, records.length), 0, removed);
+        persist();
+        renderList();
+      });
     }
 
     function clearAll() {
       if (records.length === 0) return;
-      if (confirm('¿Vaciar toda la lista de códigos?')) {
+      if (confirm(`¿Vaciar los ${records.length} registros? Esta acción no se puede deshacer.\nSi no los has exportado, cancela y usa «Descargar CSV» primero.`)) {
         records = [];
-        localStorage.removeItem(STORAGE_KEY);
+        try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* nada que hacer */ }
         renderList();
       }
     }
 
-    // 7. Linterna (Flash)
-    async function toggleTorch() {
-      if (!currentStream) return;
-      const track = currentStream.getVideoTracks()[0];
-      if (!track) return;
+    // ---------- Aviso flotante ----------
+    let toastTimer = null;
+    function showToast(text, actionLabel, onAction, ms = 5000) {
+      const toast = document.getElementById('toast');
+      const btn = document.getElementById('toast-action');
+      document.getElementById('toast-text').textContent = text;
+      btn.style.display = actionLabel ? 'inline' : 'none';
+      btn.textContent = actionLabel || '';
+      btn.onclick = () => {
+        toast.classList.remove('show');
+        clearTimeout(toastTimer);
+        if (onAction) onAction();
+      };
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), ms);
+    }
 
+    // ---------- 8. Linterna ----------
+    async function toggleTorch() {
+      const track = currentStream && currentStream.getVideoTracks()[0];
+      if (!track) return;
+      const next = !isTorchOn;
       try {
-        isTorchOn = !isTorchOn;
-        await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
+        await track.applyConstraints({ advanced: [{ torch: next }] });
+        isTorchOn = next; // solo cambia el estado si el teléfono aceptó
         document.getElementById('torch-btn').classList.toggle('active', isTorchOn);
       } catch (e) {
         console.warn('Linterna no disponible:', e);
+        showToast('La linterna no está disponible en este equipo');
       }
     }
 
-    // 8. Exportación CSV Dinámica: Codigo,Comentario,comentario1,comentario2,...,Fecha
+    // ---------- 9. Exportación CSV: Codigo, Campo adicional 1..N, Fecha ----------
+    // Celdas que Excel interpretaría como fórmula se neutralizan con un apóstrofo
+    function csvCell(value) {
+      let s = String(value == null ? '' : value);
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+
     function buildCsv() {
-      // Determinar la cantidad máxima de comentarios entre todos los registros
-      let maxComments = 1;
+      const maxFields = records.reduce((m, r) => Math.max(m, getRecordFields(r).length), 1);
+
+      const header = ['Codigo'];
+      for (let i = 1; i <= maxFields; i++) header.push(`Campo adicional ${i}`);
+      header.push('Fecha');
+
+      let csv = '﻿' + header.map(csvCell).join(',') + '\r\n';
       records.forEach(r => {
-        const len = getRecordComments(r).length;
-        if (len > maxComments) maxComments = len;
+        const fields = getRecordFields(r);
+        const row = [r.code];
+        for (let i = 0; i < maxFields; i++) row.push(fields[i] || '');
+        row.push(getRecordDate(r));
+        csv += row.map(csvCell).join(',') + '\r\n';
       });
-
-      // Encabezado dinámico: Codigo,Comentario,comentario1,comentario2,...,Fecha
-      const headerCols = ['Codigo', 'Comentario'];
-      for (let i = 1; i < maxComments; i++) {
-        headerCols.push(`comentario${i}`);
-      }
-      headerCols.push('Fecha');
-
-      let csv = '\uFEFF' + headerCols.join(',') + '\r\n';
-
-      records.forEach(r => {
-        const comms = getRecordComments(r);
-        const row = [];
-
-        // 1. Código
-        row.push(`"${r.code.replace(/"/g, '""')}"`);
-
-        // 2. Comentario principal
-        const firstComment = (comms[0] || '').replace(/"/g, '""');
-        row.push(`"${firstComment}"`);
-
-        // 3. Comentarios adicionales (comentario1, comentario2, etc.)
-        for (let i = 1; i < maxComments; i++) {
-          const extraComment = (comms[i] || '').replace(/"/g, '""');
-          row.push(`"${extraComment}"`);
-        }
-
-        // 4. Solo Fecha (sin hora)
-        row.push(`"${getRecordDate(r)}"`);
-
-        csv += row.join(',') + '\r\n';
-      });
-
       return csv;
     }
 
-    function exportData(type) {
-      if (records.length === 0) {
-        alert('No hay registros para exportar.');
-        return;
-      }
+    function csvFilename() {
+      return `codigos_${localDate()}.csv`;
+    }
 
-      const dateStr = new Date().toISOString().slice(0, 10);
-      const csvContent = buildCsv();
+    function downloadInBrowser(filename, csvContent) {
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const filename = `codigos_${dateStr}.csv`;
-
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -779,22 +1108,91 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 10000); // revocar enseguida corta la descarga en algunos navegadores
     }
 
-    // Compartir por WhatsApp, Correo, etc.
+    // Plugins nativos de Capacitor (solo existen dentro del APK)
+    const nativePlugins = {};
+    function nativePlugin(name) {
+      if (!isNative) return null;
+      if (!nativePlugins[name]) {
+        const C = window.Capacitor;
+        nativePlugins[name] = (C.Plugins && C.Plugins[name]) || (C.registerPlugin ? C.registerPlugin(name) : null);
+      }
+      return nativePlugins[name];
+    }
+
+    async function nativeWriteCsv(filename, csvContent, directory, subdir) {
+      const fs = nativePlugin('Filesystem');
+      const res = await fs.writeFile({
+        path: subdir ? `${subdir}/${filename}` : filename,
+        data: csvContent,
+        directory,
+        encoding: 'utf8',
+        recursive: true
+      });
+      return res.uri;
+    }
+
+    async function nativeShareCsv(filename, csvContent) {
+      const uri = await nativeWriteCsv(filename, csvContent, 'CACHE');
+      try {
+        await nativePlugin('Share').share({
+          title: 'Reporte de Códigos',
+          text: `Reporte con ${records.length} códigos guardados.`,
+          files: [uri],
+          dialogTitle: 'Compartir reporte'
+        });
+      } catch (e) {
+        if (!/cancel/i.test(String(e && (e.message || e)))) throw e;
+      }
+    }
+
+    async function exportData() {
+      if (records.length === 0) {
+        alert('No hay registros para exportar.');
+        return;
+      }
+      const filename = csvFilename();
+      const csv = buildCsv();
+
+      if (!isNative) {
+        downloadInBrowser(filename, csv);
+        return;
+      }
+      try {
+        await nativeWriteCsv(filename, csv, 'DOCUMENTS', 'BodegaScan');
+        showToast(`Guardado en Documentos/BodegaScan/${filename}`, null, null, 6000);
+      } catch (e) {
+        // Algunos Android no permiten escribir en Documentos: ofrecer guardarlo vía Compartir
+        console.warn('No se pudo escribir en Documentos:', e);
+        try {
+          await nativeShareCsv(filename, csv);
+        } catch (err) {
+          alert('No se pudo exportar el archivo: ' + (err.message || err));
+        }
+      }
+    }
+
+    // Compartir por WhatsApp, Correo, Drive, etc.
     async function shareData() {
       if (records.length === 0) {
         alert('No hay registros para compartir.');
         return;
       }
+      const filename = csvFilename();
+      const csv = buildCsv();
 
-      const dateStr = new Date().toISOString().slice(0, 10);
-      const filename = `codigos_${dateStr}.csv`;
-      const csvContent = buildCsv();
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const file = new File([blob], filename, { type: 'text/csv' });
+      if (isNative) {
+        try {
+          await nativeShareCsv(filename, csv);
+        } catch (err) {
+          alert('No se pudo compartir el archivo: ' + (err.message || err));
+        }
+        return;
+      }
 
+      const file = new File([csv], filename, { type: 'text/csv' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
@@ -803,15 +1201,15 @@
             text: `Reporte con ${records.length} códigos guardados.`
           });
         } catch (err) {
-          if (err.name !== 'AbortError') exportData('csv');
+          if (err.name !== 'AbortError') downloadInBrowser(filename, csv);
         }
       } else {
-        exportData('csv');
+        downloadInBrowser(filename, csv);
       }
     }
 
     function escapeHtml(str) {
-      return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+      return String(str == null ? '' : str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
     }
   </script>
 </body>
