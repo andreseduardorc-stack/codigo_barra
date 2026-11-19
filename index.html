@@ -281,8 +281,11 @@
       color: var(--text-main);
       font-size: 1rem;
       outline: none;
+      text-transform: uppercase;
     }
     .modal-input:focus { border-color: var(--accent); }
+    /* El texto de ayuda se queda en caja baja: en mayúscula se lee peor */
+    .modal-input::placeholder { text-transform: none; }
     .modal-input.code-style { font-family: monospace; font-weight: 700; color: #38bdf8; font-size: 1.1rem; }
 
     .input-row { display: flex; gap: 6px; align-items: center; }
@@ -416,7 +419,7 @@
       <div>
         <label class="field-label" for="modal-code">Código</label>
         <div class="input-row">
-          <input type="text" id="modal-code" class="modal-input code-style" placeholder="Ej: 78012345678" autocomplete="off" />
+          <input type="text" id="modal-code" class="modal-input code-style" placeholder="Ej: 78012345678" autocomplete="off" autocapitalize="characters" spellcheck="false" />
           <button type="button" class="btn-scan-field" onclick="startFieldScan(document.getElementById('modal-code'), 'Código')" title="Escanear código" aria-label="Escanear código principal">📷</button>
         </div>
       </div>
@@ -436,7 +439,7 @@
   <div class="toast" id="toast" role="status"><span id="toast-text"></span><button type="button" id="toast-action"></button></div>
 
   <script>
-    const APP_VERSION = '2.0.0';
+    const APP_VERSION = '2.1.0';
     const STORAGE_KEY = 'bodega_clean_records_v1';
 
     // Formatos que se buscan. Quitar los que no se usen reduce lecturas falsas y consumo.
@@ -724,7 +727,7 @@
     // Señal visual de que la cámara ve un código (sin guardarlo)
     function registerPassiveSighting(val) {
       if (!val) return;
-      latestSeenCode = String(val).trim();
+      latestSeenCode = upper(val).trim();
       latestSeenTime = Date.now();
 
       const dupInForm = scanTarget && valueInForm(latestSeenCode, scanTarget);
@@ -817,6 +820,29 @@
       return [document.getElementById('modal-code'), ...document.querySelectorAll('.modal-extra-field')];
     }
 
+    // ---------- 3 bis. Mayúsculas: nada entra en minúscula ----------
+    function upper(value) {
+      return String(value == null ? '' : value).toUpperCase();
+    }
+
+    // Reasignar .value manda el cursor al final: hay que devolverlo donde estaba,
+    // o corregir una letra en medio del código se vuelve imposible.
+    function forceUpper(input) {
+      const up = upper(input.value);
+      if (up === input.value) return; // con el teclado ya en mayúsculas no se toca nada
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      input.value = up;
+      if (start !== null) {
+        try { input.setSelectionRange(start, end); } catch (err) { /* campo sin selección */ }
+      }
+    }
+
+    // Cubre el teclado físico, el lector Bluetooth y lo pegado desde otra app
+    modalEl.addEventListener('input', (e) => {
+      if (e.target.classList && e.target.classList.contains('modal-input')) forceUpper(e.target);
+    });
+
     // ---------- 4. Campos adicionales dinámicos ----------
     function resetExtraFields(initialValues = ['']) {
       const container = document.getElementById('fields-container');
@@ -842,6 +868,8 @@
       input.type = 'text';
       input.className = 'modal-input modal-extra-field';
       input.autocomplete = 'off';
+      input.setAttribute('autocapitalize', 'characters');
+      input.spellcheck = false;
       input.value = val;
 
       const scanBtn = document.createElement('button');
@@ -943,7 +971,7 @@
 
     // ---------- 6. Guardar en la lista (solo al presionar "Guardar") ----------
     function saveRecordFromModal() {
-      const code = document.getElementById('modal-code').value.trim();
+      const code = upper(document.getElementById('modal-code').value).trim();
       if (!code) {
         alert('Por favor ingresa o escanea un código.');
         return;
@@ -951,7 +979,7 @@
 
       const fields = [];
       document.querySelectorAll('.modal-extra-field').forEach(input => {
-        const val = input.value.trim();
+        const val = upper(input.value).trim();
         if (val) fields.push(val);
       });
 

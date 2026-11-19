@@ -15,6 +15,7 @@ Aplicación ligera para capturar y registrar códigos de barra y QR en bodegas, 
    * Si un código ya está en otro campo del mismo registro, el visor lo marca como «Ya capturado».
    * Se guarda solo al presionar **`💾 Guardar`**. Si el código ya existe en la lista, pide confirmación.
    * Un lector Bluetooth que termina con Enter pasa al siguiente campo; en el último, guarda.
+   * **Todo se guarda en MAYÚSCULA**: lo tecleado, lo pegado y lo que lee la cámara. El teclado del teléfono abre ya en mayúsculas y el campo convierte lo que entre por cualquier otra vía, así que la lista y el CSV no mezclan `sn-123` con `SN-123`.
 
 3. **Solo fecha (sin hora)**, en la hora local del teléfono (`AAAA-MM-DD`).
 
