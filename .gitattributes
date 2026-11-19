@@ -1,0 +1,9 @@
+# El repositorio guarda todo en LF, pero esta máquina tiene core.autocrlf=true.
+# Sin esto, los archivos que Capacitor reescribe con LF en cada `cap sync`
+# (capacitor.settings.gradle, capacitor.build.gradle) salen como modificados
+# aunque no haya cambiado un solo byte, y un clon reescribiría el resto con CRLF.
+* text=auto eol=lf
+
+# Binarios: que nadie les toque los finales de línea.
+*.apk binary
+*.png binary
